@@ -14,5 +14,6 @@ int main(int argc, char *argv[])
         tigrUpdate(screen);
     }
     tigrFree(screen);
+
     return 0;
 }

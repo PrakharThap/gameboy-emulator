@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef PPU_H
 #define PPU_H
 
@@ -8,8 +10,8 @@
 #define SCREEN_WIDTH 160
 #define SCREEN_HEIGHT 144
 
-
-TPixel get_color_from_palette(unsigned char palette, unsigned char color_id);
-
+void tick(unsigned char cycles);
+unsigned char get_mode();
+void ppu_init();
 
 #endif

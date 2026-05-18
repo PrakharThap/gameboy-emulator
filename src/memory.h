@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef MEMORY_H
 #define MEMORY_H
 
@@ -34,8 +36,7 @@ extern unsigned char memory[MEMORY_SIZE];
 #define HIGH_RAM_START 0xFF80
 #define HIGH_RAM_END 0xFFFE
 
-unsigned char get_bit(unsigned char byte, int bit_position);
-unsigned char memory_read(unsigned short address);
-void memory_write(unsigned short address, unsigned char value);
+unsigned char read_byte(unsigned short address);
+void write_byte(unsigned short address, unsigned char value);
 
 #endif
