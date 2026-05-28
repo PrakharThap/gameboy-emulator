@@ -4,6 +4,7 @@
 #include "PPU/ppu.h"
 #include "cartridge.h"
 #include "memory.h"
+#include "regions.h"
 
 uint8_t bus_read(uint16_t address) {
     uint8_t ppu_mode = get_mode();
@@ -14,7 +15,8 @@ uint8_t bus_read(uint16_t address) {
         return 0xFF;
     }
 
-    if ((address >= 0x0000 && address <= 0x7FFF) || (address >= 0xA000 && address <= 0xBFFF)) {
+    if (address <= ROM_BANK_N_END ||
+        (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
         return mbc_read(address);
     } else {
         return mem_read(address);
@@ -30,7 +32,8 @@ void bus_write(uint16_t address, uint8_t value) {
         return;
     }
 
-    if ((address >= 0x0000 && address <= 0x7FFF) || (address >= 0xA000 && address <= 0xBFFF)) {
+    if (address <= ROM_BANK_N_END ||
+        (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
         mbc_write(address, value);
     } else {
         mem_write(address, value);
@@ -38,9 +41,14 @@ void bus_write(uint16_t address, uint8_t value) {
 }
 
 void gb_init(FILE *rom) {
+    // Initialize memory
     mem_init();
 
+    // Load game ROM
     cartridge_load(rom);
+
+    // Initialize PPU
+    ppu_init(mem_read, mem_write);
 }
 
 int main(int argc, char *argv[]) {
@@ -53,12 +61,7 @@ int main(int argc, char *argv[]) {
         scanf("%s", fileName);
         rom = fopen(fileName, "rb");
     }
-
-    mem_init();
-
     gb_init(rom);
-
-    ppu_init(mem_read, mem_write);
 
     return 0;
 }

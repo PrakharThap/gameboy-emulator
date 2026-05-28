@@ -1,12 +1,11 @@
 #pragma once
 
+#include "regions.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "memory.h"
 
 union MBCData {
     struct MBC1_State {

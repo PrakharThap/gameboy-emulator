@@ -23,8 +23,10 @@ static uint8_t oam_index = 0;   // Index for OAM search results
 static SDL_Window *window;     // Pointer to the SDL window
 static SDL_Renderer *renderer; // Pointer to SDL renderer
 static SDL_Texture *texture;
-static uint8_t mode;              // Current PPU mode (0-3)
-static uint16_t scanline_dot = 0; // Counts dots for timing
+static uint8_t mode;          // Current PPU mode (0-3)
+static uint16_t scanline_dot; // Counts dots for timing
+
+static uint8_t win_counter; // Window internal counter
 
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
@@ -92,6 +94,7 @@ void tick(uint8_t dots) {
     if (!lcdc_enabled) {
         mode = 2; // Reset PPU while off
         scanline_dot = 0;
+        win_counter = 0;
         return;
     }
     if (scanline_dot == 0) {
@@ -126,9 +129,10 @@ void tick(uint8_t dots) {
             scanline_dot = 0;
 
             uint8_t ly = increment_ly();
-            if (ly == 0)
+            if (ly == 0) {
+                win_counter = 0;
                 set_mode(2); // Start OAM Search for the next frame
-
+            }
             tick(diff); // Process remaining dots
         }
         break;
@@ -179,10 +183,22 @@ void tick(uint8_t dots) {
             uint8_t window_tile_map_select = lcdc & 0x40, window_enabled = lcdc & 0x20,
                     bg_and_window_tile_data_select = lcdc & 0x10, bg_tile_map_select = lcdc & 0x08,
                     obj_enabled = lcdc & 0x02, bg_and_window_enabled = lcdc & 0x01;
+            uint8_t ly = mem_read(LY_ADDRESS);
+            uint8_t wy = mem_read(WY_ADDRESS);
+            uint8_t wx = mem_read(WX_ADDRESS);
 
             if (bg_and_window_enabled) {
+                uint16_t base_pointer = bg_and_window_tile_data_select ? 0x8000 : 0x9000;
                 // Window Rendering
-                if (window_enabled) {
+                if (window_enabled && ly >= wy && wx <= 166 && win_counter <= 143) {
+                    uint16_t win_map = window_tile_map_select ? 0x9C00 : 0x9800;
+                    if (wx < 7)
+                        wx = 7;
+                    uint8_t tiley = win_counter % 8;
+                    for (uint8_t x = wx - 7; x < 160; x++) {
+                    }
+
+                    win_counter++;
                 }
 
                 // Background Rendering
@@ -247,4 +263,5 @@ void ppu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, u
     mode = 1;
     oam_index = 0;
     scanline_dot = 0;
+    win_counter = 0;
 }
