@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MEMORY_SIZE 0x4000
+#define MEMORY_SIZE 0x10000
 
 uint8_t mem_read(uint16_t address);
 void mem_write(uint16_t address, uint8_t value);

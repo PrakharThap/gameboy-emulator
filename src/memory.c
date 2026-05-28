@@ -3,18 +3,25 @@
 static uint8_t *memory;
 
 uint8_t mem_read(uint16_t address) {
+    if (address <= ROM_BANK_N_END ||
+        (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
+        printf("Error: Memory read out of bounds access.");
+        return 0xFF;
+    }
     // Echo RAM redirection
     if (address >= ECHO_RAM_START && address <= ECHO_RAM_END) {
         address -= 0x2000;
     }
 
-    if (address < MEMORY_SIZE) {
-        return memory[address];
-    }
-    return 0xFF; // Return 0xFF for out-of-bounds access
+    return memory[address];
 }
 
 void mem_write(uint16_t address, uint8_t value) {
+    if (address <= ROM_BANK_N_END ||
+        (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
+        printf("Error: Memory write out of bounds access.");
+        return;
+    }
     // Echo RAM redirection
     if (address >= ECHO_RAM_START && address <= ECHO_RAM_END) {
         address -= 0x2000;

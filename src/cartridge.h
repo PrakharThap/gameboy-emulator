@@ -8,6 +8,8 @@
 #include <string.h>
 
 union MBCData {
+    struct NoMBC_State {
+    } NoMBC;
     struct MBC1_State {
         uint8_t ram_bank;
         uint8_t banking_mode;

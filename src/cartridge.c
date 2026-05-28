@@ -22,10 +22,9 @@ uint8_t mbc_read(uint16_t address) {
             // Bank n
             return bankn[address - 0x4000];
         } else if (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END) {
-            // External RAM
-            if (!mbc.mbc_data.MBC1.ram_enabled || num_ram_banks == 0)
-                return 0xFF;
-            return ram_bank[address - 0xA000];
+            // No MBC has no external RAM
+            printf("Error: External RAM read requested on No MBC.");
+            return 0xFF;
         }
 
         printf("Error: Out of bounds address given to No MBC!");
@@ -148,6 +147,12 @@ void cartridge_load(FILE *romfp) {
     // Initialize MBC
     mbc.mbc_type = rom[0x0147];
     switch (mbc.mbc_type) {
+    // No MBC
+    case 0x00: {
+        mbc.mbc_data.NoMBC = (struct NoMBC_State){};
+        break;
+    }
+    // MBC1
     case 0x01:
     case 0x02:
     case 0x03: {

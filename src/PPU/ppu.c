@@ -23,6 +23,8 @@ static uint8_t oam_index = 0;   // Index for OAM search results
 static SDL_Window *window;     // Pointer to the SDL window
 static SDL_Renderer *renderer; // Pointer to SDL renderer
 static SDL_Texture *texture;
+static uint32_t framebuffer[160 * 144];
+
 static uint8_t mode;          // Current PPU mode (0-3)
 static uint16_t scanline_dot; // Counts dots for timing
 
@@ -31,20 +33,44 @@ static uint8_t win_counter; // Window internal counter
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
-static SDL_Color get_color_from_palette(uint8_t palette, uint8_t color_id) {
-    // Each color is represented by 2 bits in the palette
-    uint8_t color_bits = (palette >> (color_id * 2)) & 0x03;
-    switch (color_bits) {
-    case 0:
-        return (struct SDL_Color){0xFF, 0xFF, 0xFF, 0xFF}; // White
-    case 1:
-        return (struct SDL_Color){0xAA, 0xAA, 0xAA, 0xFF}; // Light_Gray
-    case 2:
-        return (struct SDL_Color){0x55, 0x55, 0x55, 0xFF}; // Dark_Gray
-    case 3:
-        return (struct SDL_Color){0x00, 0x00, 0x00, 0xFF}; // Black
-    default:
-        return (struct SDL_Color){0xFF, 0xFF, 0xFF, 0xFF}; // Default white
+static void present_frame(uint32_t *framebuffer) {
+    void *pixels;
+    int pitch;
+
+    SDL_LockTexture(texture, NULL, &pixels, &pitch);
+    memcpy(pixels, framebuffer, 160 * 144 * sizeof(uint32_t));
+    SDL_UnlockTexture(texture);
+
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+}
+
+static void fill_row_colors(uint32_t colors[8], uint8_t data_address, uint8_t palette) {
+    uint8_t byte1 = mem_read(data_address);
+    uint8_t byte2 = mem_read(data_address + 1);
+
+    for (int pixel = 0; pixel < 8; pixel++) {
+        uint8_t color_id = (((byte2 >> (pixel - 7)) & 0x01) << 1) + ((byte1 >> (pixel - 7)) & 0x01);
+
+        // Each color is represented by 2 bits in the palette
+        uint8_t color_bits = (palette >> (color_id * 2)) & 0x03;
+        switch (color_bits) {
+        case 0:
+            colors[pixel] = 0xFFFFFFAA; // White
+            break;
+        case 1:
+            colors[pixel] = 0xAAAAAAFF; // Light Gray
+            break;
+        case 2:
+            colors[pixel] = 0x555555FF; // Dark Gray
+            break;
+        case 3:
+            colors[pixel] = 0x000000FF; // Black
+            break;
+        default:
+            colors[pixel] = 0xFFFFFFFF; // Default white
+        }
     }
 }
 
@@ -130,6 +156,9 @@ void tick(uint8_t dots) {
 
             uint8_t ly = increment_ly();
             if (ly == 0) {
+                // Display current framebuffer
+                present_frame(framebuffer);
+
                 win_counter = 0;
                 set_mode(2); // Start OAM Search for the next frame
             }
@@ -188,14 +217,41 @@ void tick(uint8_t dots) {
             uint8_t wx = mem_read(WX_ADDRESS);
 
             if (bg_and_window_enabled) {
-                uint16_t base_pointer = bg_and_window_tile_data_select ? 0x8000 : 0x9000;
+                uint8_t bgp = mem_read(BGP_ADDRESS);
+
                 // Window Rendering
                 if (window_enabled && ly >= wy && wx <= 166 && win_counter <= 143) {
+                    uint8_t y = win_counter;
                     uint16_t win_map = window_tile_map_select ? 0x9C00 : 0x9800;
                     if (wx < 7)
                         wx = 7;
-                    uint8_t tiley = win_counter % 8;
-                    for (uint8_t x = wx - 7; x < 160; x++) {
+
+                    uint8_t x = wx - 7;
+                    while (x < 160) {
+                        uint8_t win_x = x - (wx - 7);
+                        uint8_t tile_id = mem_read(win_map + ((y / 8) * 32) + (win_x / 8));
+
+                        uint16_t tile_addr;
+                        if (bg_and_window_tile_data_select) {
+                            tile_addr = 0x8000 + tile_id * 16;
+                        } else {
+                            tile_addr = 0x9000 + ((int8_t)tile_id * 16);
+                        }
+
+                        uint32_t row_colors[8];
+                        fill_row_colors(row_colors, tile_addr + (y % 8) * 2, bgp);
+
+                        if (x % 8 == 0) {
+                            for (int i = 0; i < 8; i++) {
+                                framebuffer[ly * 160 + x + i] = row_colors[i];
+                            }
+                            x += 8;
+                        } else {
+                            for (int i = (x % 8); i < 8; i++) {
+                                framebuffer[ly * 160 + x + i] = row_colors[i];
+                            }
+                            x += 8 - (x % 8);
+                        }
                     }
 
                     win_counter++;
