@@ -47,8 +47,8 @@ void test_window() {
     mem_write(0xFF40, 0x91 | 0x40 | 0x20); // LCDC
 
     // Set window position (top left of screen)
-    mem_write(0xFF4A, 0x08); // WY = 0
-    mem_write(0xFF4B, 0x10); // WX = 7 (x = 0)
+    mem_write(0xFF4A, 0x00); // WY = 0
+    mem_write(0xFF4B, 0x07); // WX = 7 (x = 0)
 
     // Set palette (all 4 colors)
     mem_write(0xFF47, 0xE4); // BGP: 11 10 01 00
@@ -73,6 +73,36 @@ void test_window() {
     }
 }
 
+void test_background() {
+    // Tile 2: checkerboard pattern within a tile
+    for (int i = 0; i < 16; i += 2) {
+        mem_write(0x8020 + i, 0xAA);     // 10101010
+        mem_write(0x8020 + i + 1, 0x55); // 01010101
+    }
+
+    // Tile 3: horizontal stripes
+    for (int i = 0; i < 16; i += 2) {
+        mem_write(0x8030 + i, 0xFF);     // all on
+        mem_write(0x8030 + i + 1, 0x00); // all off
+    }
+
+    // Fill background tile map at 0x9800 with alternating tile 2 and 3
+    for (int row = 0; row < 32; row++) {
+        for (int col = 0; col < 32; col++) {
+            uint8_t tile = (row + col) % 2 ? 2 : 3;
+            mem_write(0x9800 + row * 32 + col, tile);
+        }
+    }
+
+    // SCX and SCY at 0 to show top left of map
+    mem_write(0xFF42, 0x00); // SCY
+    mem_write(0xFF43, 0x00); // SCX
+
+    // Update LCDC to use 0x9800 for BG map and 0x9C00 for window
+    // bit 3 = 0 (BG uses 0x9800), bit 6 = 1 (window uses 0x9C00)
+    mem_write(0xFF40, 0x91 | 0x40); // LCDC
+}
+
 void gb_init(FILE *rom) {
     // Initialize memory
     mem_init();
@@ -81,6 +111,7 @@ void gb_init(FILE *rom) {
     cartridge_load(rom);
 
     test_window();
+    test_background();
 
     // Initialize PPU
     ppu_init(mem_read, mem_write);

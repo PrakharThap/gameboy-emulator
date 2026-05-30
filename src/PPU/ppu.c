@@ -200,8 +200,38 @@ void tick(uint8_t dots) {
             if (bg_and_window_enabled) {
                 uint8_t bgp = mem_read(BGP_ADDRESS);
 
+                // Background Rendering
+                uint16_t bg_map = bg_tile_map_select ? 0x9C00 : 0x9800;
+                uint8_t scy = mem_read(SCY_ADDRESS);
+                uint8_t scx = mem_read(SCX_ADDRESS);
+
+                uint8_t bg_y = scy + ly;
+
+                // Always render 20 tiles (with scrolling)
+                for (int tile = 0; tile < 20; tile++) {
+                    // Calculate x (first tile may have offset);
+                    uint8_t x = scx + (tile * 8);
+
+                    // Calculate tile ID relative to WX
+                    uint8_t tile_id = mem_read(bg_map + ((bg_y / 8) * 32) + tile);
+
+                    uint16_t tile_addr;
+                    if (bg_and_window_tile_data_select) {
+                        tile_addr = 0x8000 + tile_id * 16;
+                    } else {
+                        tile_addr = 0x9000 + ((int8_t)tile_id * 16);
+                    }
+
+                    uint32_t row_colors[8];
+                    fill_row_colors(row_colors, tile_addr + (bg_y % 8) * 2, bgp);
+
+                    for (int i = 0; i < 8; i++) {
+                        update_framebuffer(row_colors[i], (x + i) % 160, ly);
+                    }
+                }
+
                 // Window Rendering
-                if (window_enabled && win_y <= 143) {
+                if (window_enabled && win_y < 144) {
                     uint16_t win_map = window_tile_map_select ? 0x9C00 : 0x9800;
                     uint8_t wy = mem_read(WY_ADDRESS);
                     uint8_t wx = mem_read(WX_ADDRESS);
@@ -243,10 +273,6 @@ void tick(uint8_t dots) {
                         win_y++;
                     }
                 }
-
-                // Background Rendering
-                uint8_t scy = mem_read(SCY_ADDRESS);
-                uint8_t scx = mem_read(SCX_ADDRESS);
             }
 
             // Sprite Rendering

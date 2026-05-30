@@ -19,7 +19,13 @@ void present_frame() {
     SDL_RenderPresent(renderer);
 }
 
-void update_framebuffer(uint32_t color, uint8_t x, uint8_t y) { framebuffer[160 * y + x] = color; }
+void update_framebuffer(uint32_t color, uint8_t x, uint8_t y) {
+    if (x >= 160 || y >= 144) {
+        printf("Error: Framebuffer out of bounds write!\n");
+        return;
+    }
+    framebuffer[160 * y + x] = color;
+}
 
 void window_init() {
     // Initialize SDL
