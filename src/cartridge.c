@@ -27,8 +27,8 @@ uint8_t mbc_read(uint16_t address) {
             return 0xFF;
         }
 
-        printf("Error: Out of bounds address given to No MBC!\n");
-        return 0xFF;
+        printf("Error: Out of bounds address given to No MBC. (Address: 0x%04X) \n", address);
+        exit(1);
     }
     // MBC1
     case 0x01:
@@ -47,13 +47,13 @@ uint8_t mbc_read(uint16_t address) {
             return ram_bank[address - 0xA000];
         }
 
-        printf("Error: Out of bounds address given to MBC1!\n");
+        printf("Error: Out of bounds address given to MBC1. (Address: 0x%04X) \n", address);
         return 0xFF;
     }
-    default:
-        printf("Error: MBC not supported!\n");
-        return 0xFF;
     }
+
+    printf("MBC is not supported.");
+    exit(1);
 }
 
 void mbc_write(uint16_t address, uint8_t value) {
@@ -64,7 +64,10 @@ void mbc_write(uint16_t address, uint8_t value) {
         if (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END) {
             ram_bank[address - 0xA000] = value;
         } else {
-            printf("Error: No MBC received out of bounds address!\n");
+            printf(
+                "Error: No MBC received out of bounds address! (Address: 0x%04X; Value: 0x%02X)\n",
+                address, value);
+            exit(1);
         }
         break;
     }
@@ -113,13 +116,14 @@ void mbc_write(uint16_t address, uint8_t value) {
                 return;
             ram_bank[address - 0xA000] = value;
         } else {
-            printf("Error: MBC1 received out of bounds address!\n");
+            printf("Error: MBC1 received out of bounds address! (Address: 0x%04X; Value: 0x%02X)\n",
+                   address, value);
+            exit(1);
         }
         break;
     }
-    default:
-        printf("Error: MBC not supported!\n");
-        return;
+        printf("MBC is not supported.");
+        exit(1);
     }
 }
 
@@ -127,7 +131,7 @@ void cartridge_load(FILE *romfp) {
     // Initialize and ROM
     if (romfp == NULL) {
         printf("ERROR: Game ROM could not be opened.\n");
-        return;
+        exit(1);
     }
 
     fseek(romfp, 0, SEEK_END);
@@ -179,7 +183,7 @@ void cartridge_load(FILE *romfp) {
     }
     default:
         printf("Error: MBC not supported!\n");
-        return;
+        exit(1);
     }
 
     if (num_ram_banks > 0) {

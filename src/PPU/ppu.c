@@ -343,7 +343,6 @@ void tick(uint8_t dots) {
                     } else {
                         if (!obj_size) {
                             printf("Error: This shouldn't happen!\n");
-                            return;
                         }
                         // Render bottom tile for 8x16 mode
                         uint8_t bottom_tile_index =
