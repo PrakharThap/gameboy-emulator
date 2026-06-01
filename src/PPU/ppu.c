@@ -19,7 +19,8 @@ struct OAMEntry {
     uint8_t tile_row_offset;
 };
 static struct OAMEntry oam_buffer[10]; // Buffer for OAM search results (up to 10 sprites per line)
-static uint8_t oam_index = 0;          // Index for OAM search results
+static uint8_t oam_counter = 0;        // Index for OAM search results
+static uint8_t oam_index = 0;          // Index for valid OAM search results
 
 static uint8_t mode;          // Current PPU mode (0-3)
 static uint16_t scanline_dot; // Counts dots for timing
@@ -115,6 +116,7 @@ void tick(uint8_t dots) {
     }
     if (scanline_dot == 0) {
         oam_index = 0; // Reset OAM index at the start of each scanline
+        oam_counter = 0;
     }
     // Dot counting per CPU instruction
     switch (mode) {
@@ -158,19 +160,28 @@ void tick(uint8_t dots) {
     }
     case 2: // OAM Search
     {
+        scanline_dot += dots;
+
+        if (oam_counter >= 40)
+            return;
+
         uint8_t obj_size = lcdc & 0x04;
-        uint8_t entries_to_read = dots / 2;
+        uint8_t entries_to_read = dots / 2; // Each entry takes 2 dots to read
+        if (scanline_dot >= 80)
+            entries_to_read = (80 - scanline_dot - dots) / 2;
 
         uint8_t ly = mem_read(LY_ADDRESS);
+
         for (int i = 0; i < entries_to_read && oam_index < 10; i++) {
             // Perform OAM search logic here
-            uint8_t y_pos = mem_read(OAM_START + oam_index * 4);
-            uint8_t x_pos = mem_read(OAM_START + oam_index * 4 + 1);
-            uint8_t tile_index = mem_read(OAM_START + oam_index * 4 + 2);
-            uint8_t attributes = mem_read(OAM_START + oam_index * 4 + 3);
+            uint8_t y_pos = mem_read(OAM_START + oam_counter * 4);
+            uint8_t x_pos = mem_read(OAM_START + oam_counter * 4 + 1);
+            uint8_t tile_index = mem_read(OAM_START + oam_counter * 4 + 2);
+            uint8_t attributes = mem_read(OAM_START + oam_counter * 4 + 3);
 
             uint8_t sprite_y = y_pos - 16;
             uint8_t sprite_height = obj_size ? 16 : 8;
+
             if (ly >= sprite_y &&
                 ly < sprite_y +
                          sprite_height) // Check if the sprite is visible on the current scanline
@@ -180,12 +191,11 @@ void tick(uint8_t dots) {
                 oam_buffer[oam_index].attributes = attributes;
                 oam_buffer[oam_index].tile_row_offset = ly - sprite_y;
                 oam_index++;
-
-                printf("OAM THING: TROW: %d\n", ly - sprite_y);
             }
+
+            oam_counter++;
         }
 
-        scanline_dot += dots;
         if (scanline_dot >= 80) // OAM Search takes 80 dots
         {
             uint16_t diff = scanline_dot - 80;
@@ -193,6 +203,7 @@ void tick(uint8_t dots) {
             set_mode(3); // Enter Pixel Transfer
             tick(diff);  // Process remaining dots
         }
+
         break;
     }
     case 3: // Pixel Transfer
@@ -293,9 +304,9 @@ void tick(uint8_t dots) {
             if (obj_enabled) {
                 uint8_t obj_size = lcdc & 0x04;
 
-                printf("obj ind: %d\n", oam_index);
+                printf("ly: %d; obj ind: %d\n", ly, oam_index);
 
-                for (int obj_ind = 0; obj_ind == oam_index; obj_ind++) {
+                for (int obj_ind = 0; obj_ind < oam_index; obj_ind++) {
                     struct OAMEntry obj = oam_buffer[obj_ind];
                     uint8_t priority = obj.attributes & 0x80;
                     uint8_t y_flip = obj.attributes & 0x40;
