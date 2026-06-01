@@ -18,8 +18,8 @@ struct OAMEntry {
     uint8_t attributes;
     uint8_t tile_row_offset;
 };
-struct OAMEntry oam_buffer[10]; // Buffer for OAM search results (up to 10 sprites per line)
-static uint8_t oam_index = 0;   // Index for OAM search results
+static struct OAMEntry oam_buffer[10]; // Buffer for OAM search results (up to 10 sprites per line)
+static uint8_t oam_index = 0;          // Index for OAM search results
 
 static uint8_t mode;          // Current PPU mode (0-3)
 static uint16_t scanline_dot; // Counts dots for timing
@@ -29,30 +29,33 @@ static uint8_t win_y; // Window internal counter
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
-static void fill_row_colors(uint32_t colors[8], uint16_t data_address, uint8_t palette) {
+static void fill_row_colors(struct PixelData pixelData[8], uint16_t data_address, uint8_t palette) {
     uint8_t byte1 = mem_read(data_address);
     uint8_t byte2 = mem_read(data_address + 1);
 
     for (int pixel = 0; pixel < 8; pixel++) {
+        struct PixelData *pd = &pixelData[pixel];
         uint8_t color_id = (((byte2 >> (7 - pixel)) & 0x01) << 1) + ((byte1 >> (7 - pixel)) & 0x01);
+
+        pd->transparent = color_id == 0x00;
 
         // Each color is represented by 2 bits in the palette
         uint8_t color_bits = (palette >> (color_id * 2)) & 0x03;
         switch (color_bits) {
         case 0:
-            colors[pixel] = 0xFFFFFFFF; // White
+            pd->color = 0xFFFFFFFF; // White
             break;
         case 1:
-            colors[pixel] = 0xAAAAAAFF; // Light Gray
+            pd->color = 0xAAAAAAFF; // Light Gray
             break;
         case 2:
-            colors[pixel] = 0x555555FF; // Dark Gray
+            pd->color = 0x555555FF; // Dark Gray
             break;
         case 3:
-            colors[pixel] = 0x000000FF; // Black
+            pd->color = 0x000000FF; // Black
             break;
         default:
-            colors[pixel] = 0xFFFFFFFF; // Default white
+            pd->color = 0xFFFFFFFF; // Default white
         }
     }
 }
@@ -98,6 +101,10 @@ static void set_mode(uint8_t new_mode) {
 }
 
 void tick(uint8_t dots) {
+    if (dots % 4 != 0) {
+        printf("OAM Search received incorrect dot count: %d\n", dots);
+        return;
+    }
     uint8_t lcdc = mem_read(LCDC_ADDRESS);
     unsigned lcdc_enabled = lcdc & 0x80;
     if (!lcdc_enabled) {
@@ -153,8 +160,6 @@ void tick(uint8_t dots) {
     {
         uint8_t obj_size = lcdc & 0x04;
         uint8_t entries_to_read = dots / 2;
-        if (dots % 2 != 0)
-            printf("OAM Search received odd dot count: %d\n", dots);
 
         uint8_t ly = mem_read(LY_ADDRESS);
         for (int i = 0; i < entries_to_read && oam_index < 10; i++) {
@@ -175,6 +180,8 @@ void tick(uint8_t dots) {
                 oam_buffer[oam_index].attributes = attributes;
                 oam_buffer[oam_index].tile_row_offset = ly - sprite_y;
                 oam_index++;
+
+                printf("OAM THING: TROW: %d\n", ly - sprite_y);
             }
         }
 
@@ -208,12 +215,16 @@ void tick(uint8_t dots) {
                 uint8_t bg_y = scy + ly;
 
                 // Always render 20 tiles (with scrolling)
-                for (int tile = 0; tile < 20; tile++) {
-                    // Calculate x (first tile may have offset);
-                    uint8_t x = scx + (tile * 8);
+                for (int tile = 0; tile < 21; tile++) {
+                    // Don't need to render 21'st partial tile
+                    if (tile == 20 && (scx % 8) == 0)
+                        continue;
 
-                    // Calculate tile ID relative to WX
-                    uint8_t tile_id = mem_read(bg_map + ((bg_y / 8) * 32) + tile);
+                    // Calculate x (first tile may have offset);
+                    uint8_t x = (tile == 0) ? 0 : (tile * 8) - (scx % 8);
+
+                    // Calculate tile ID relative to SCX
+                    uint8_t tile_id = mem_read(bg_map + ((bg_y / 8) * 32) + tile + (scx / 8));
 
                     uint16_t tile_addr;
                     if (bg_and_window_tile_data_select) {
@@ -222,11 +233,21 @@ void tick(uint8_t dots) {
                         tile_addr = 0x9000 + ((int8_t)tile_id * 16);
                     }
 
-                    uint32_t row_colors[8];
-                    fill_row_colors(row_colors, tile_addr + (bg_y % 8) * 2, bgp);
+                    struct PixelData row_data[8];
+                    fill_row_colors(row_data, tile_addr + (bg_y % 8) * 2, bgp);
 
-                    for (int i = 0; i < 8; i++) {
-                        update_framebuffer(row_colors[i], (x + i) % 160, ly);
+                    if (tile == 0) {
+                        for (int i = 0; i < 8 - (scx % 8); i++) {
+                            update_framebuffer(row_data[(scx % 8) + i], x + i, ly);
+                        }
+                    } else if (tile == 20) {
+                        for (int i = 0; i < scx % 8; i++) {
+                            update_framebuffer(row_data[i], x + i, ly);
+                        }
+                    } else {
+                        for (int i = 0; i < 8; i++) {
+                            update_framebuffer(row_data[i], x + i, ly);
+                        }
                     }
                 }
 
@@ -255,28 +276,86 @@ void tick(uint8_t dots) {
                                 tile_addr = 0x9000 + ((int8_t)tile_id * 16);
                             }
 
-                            uint32_t row_colors[8];
-                            fill_row_colors(row_colors, tile_addr + (win_y % 8) * 2, bgp);
+                            struct PixelData row_data[8];
+                            fill_row_colors(row_data, tile_addr + (win_y % 8) * 2, bgp);
 
-                            if (tile == 0) { // For first tile (offset)
-                                for (int i = 0; i < (8 - (x % 8)); i++) {
-                                    update_framebuffer(row_colors[i], x + i, ly);
-                                }
-                                x += 8 - (x % 8);
-                            } else { // For rest of the tiles
-                                for (int i = 0; i < 8; i++) {
-                                    update_framebuffer(row_colors[i], x + i, ly);
-                                }
-                                x += 8;
+                            uint8_t num_iter = (tile == 0) ? 8 - ((wx - 7) % 8) : 8;
+                            for (int i = 0; i < num_iter; i++) {
+                                update_framebuffer(row_data[i], x + i, ly);
                             }
                         }
-                        win_y++;
                     }
+                    win_y++;
                 }
             }
 
             // Sprite Rendering
             if (obj_enabled) {
+                uint8_t obj_size = lcdc & 0x04;
+
+                printf("obj ind: %d\n", oam_index);
+
+                for (int obj_ind = 0; obj_ind == oam_index; obj_ind++) {
+                    struct OAMEntry obj = oam_buffer[obj_ind];
+                    uint8_t priority = obj.attributes & 0x80;
+                    uint8_t y_flip = obj.attributes & 0x40;
+                    uint8_t x_flip = obj.attributes & 0x20;
+                    uint8_t palette =
+                        mem_read((obj.attributes & 0x10) ? OBP1_ADDRESS : OBP0_ADDRESS);
+
+                    uint8_t row = y_flip ? obj.tile_row_offset : 7 - obj.tile_row_offset;
+                    if (obj.tile_row_offset <= 7) {
+                        // Render top tile
+                        uint8_t top_tile_index = obj.tile_index;
+                        if (obj_size) {
+                            top_tile_index &= 0xFE;
+                            if (y_flip)
+                                top_tile_index |= 0x01;
+                        }
+
+                        uint16_t top_tile_address = 0x8000 + top_tile_index * 16;
+                        uint16_t top_tile_row_address = top_tile_address + row * 2;
+
+                        struct PixelData rowData[8];
+                        fill_row_colors(rowData, top_tile_row_address, palette);
+
+                        if (x_flip) {
+                            // Reverse draw order
+                            for (int i = 0; i < 8; i++) {
+                                update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i, ly);
+                            }
+                        } else {
+                            for (int i = 0; i < 8; i++) {
+                                update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
+                            }
+                        }
+                    } else {
+                        if (!obj_size) {
+                            printf("Error: This shouldn't happen!\n");
+                            return;
+                        }
+                        // Render bottom tile for 8x16 mode
+                        uint8_t bottom_tile_index =
+                            y_flip ? obj.tile_index & 0xFE : obj.tile_index | 0x01;
+
+                        uint16_t bottom_tile_address = 0x8000 + bottom_tile_index * 16;
+                        uint16_t bottom_tile_row_address = bottom_tile_address + row * 2;
+
+                        struct PixelData rowData[8];
+                        fill_row_colors(rowData, bottom_tile_row_address, palette);
+
+                        if (x_flip) {
+                            // Reverse draw order
+                            for (int i = 0; i < 8; i++) {
+                                update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i, ly);
+                            }
+                        } else {
+                            for (int i = 0; i < 8; i++) {
+                                update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
+                            }
+                        }
+                    }
+                }
             }
 
             uint16_t diff = scanline_dot - (80 + 172);

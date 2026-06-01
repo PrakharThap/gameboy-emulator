@@ -4,6 +4,8 @@ static SDL_Window *window;     // Pointer to the SDL window
 static SDL_Renderer *renderer; // Pointer to SDL renderer
 static SDL_Texture *texture;
 
+static bool transparency[160];
+
 static uint32_t framebuffer[160 * 144];
 
 void present_frame() {
@@ -19,12 +21,26 @@ void present_frame() {
     SDL_RenderPresent(renderer);
 }
 
-void update_framebuffer(uint32_t color, uint8_t x, uint8_t y) {
+void update_framebuffer(struct PixelData pd, uint8_t x, uint8_t y) {
     if (x >= 160 || y >= 144) {
         printf("Error: Framebuffer out of bounds write!\n");
         return;
     }
-    framebuffer[160 * y + x] = color;
+
+    transparency[x] = pd.transparent;
+    framebuffer[160 * y + x] = pd.color;
+}
+
+void update_obj_framebuffer(struct PixelData pd, bool priority, uint8_t x, uint8_t y) {
+    if (x >= 160 || y >= 144) {
+        printf("Error: Framebuffer out of bounds write!\n");
+        return;
+    }
+
+    if (priority && !framebuffer[x])
+        return;
+
+    framebuffer[160 * y + x] = pd.color;
 }
 
 void window_init() {

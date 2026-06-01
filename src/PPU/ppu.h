@@ -1,6 +1,9 @@
 #pragma once
 
 #include "../regions.h"
+#include "window.h"
+
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
