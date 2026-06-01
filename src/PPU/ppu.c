@@ -44,16 +44,16 @@ static void fill_row_colors(struct PixelData pixelData[8], uint16_t data_address
         uint8_t color_bits = (palette >> (color_id * 2)) & 0x03;
         switch (color_bits) {
         case 0:
-            pd->color = 0xFFFFFFFF; // White
+            pd->color = 0x000000FF; // Black
             break;
         case 1:
-            pd->color = 0xAAAAAAFF; // Light Gray
-            break;
-        case 2:
             pd->color = 0x555555FF; // Dark Gray
             break;
+        case 2:
+            pd->color = 0xAAAAAAFF; // Light Gray
+            break;
         case 3:
-            pd->color = 0x000000FF; // Black
+            pd->color = 0xFFFFFFFF; // White
             break;
         default:
             pd->color = 0xFFFFFFFF; // Default white
@@ -114,10 +114,7 @@ void tick(uint8_t dots) {
         win_y = 0;
         return;
     }
-    if (scanline_dot == 0) {
-        oam_index = 0; // Reset OAM index at the start of each scanline
-        oam_counter = 0;
-    }
+
     // Dot counting per CPU instruction
     switch (mode) {
     case 0: // HBlank
@@ -127,6 +124,9 @@ void tick(uint8_t dots) {
         {
             uint16_t diff = scanline_dot - 456;
             scanline_dot = 0;
+
+            oam_index = 0; // Reset OAM index at the start of each scanline
+            oam_counter = 0;
 
             uint8_t ly = increment_ly();
             if (ly == 144)
@@ -167,12 +167,11 @@ void tick(uint8_t dots) {
 
         uint8_t obj_size = lcdc & 0x04;
         uint8_t entries_to_read = dots / 2; // Each entry takes 2 dots to read
-        if (scanline_dot >= 80)
-            entries_to_read = (80 - scanline_dot - dots) / 2;
 
         uint8_t ly = mem_read(LY_ADDRESS);
 
         for (int i = 0; i < entries_to_read && oam_index < 10; i++) {
+
             // Perform OAM search logic here
             uint8_t y_pos = mem_read(OAM_START + oam_counter * 4);
             uint8_t x_pos = mem_read(OAM_START + oam_counter * 4 + 1);
@@ -304,8 +303,6 @@ void tick(uint8_t dots) {
             if (obj_enabled) {
                 uint8_t obj_size = lcdc & 0x04;
 
-                printf("ly: %d; obj ind: %d\n", ly, oam_index);
-
                 for (int obj_ind = 0; obj_ind < oam_index; obj_ind++) {
                     struct OAMEntry obj = oam_buffer[obj_ind];
                     uint8_t priority = obj.attributes & 0x80;
@@ -314,15 +311,12 @@ void tick(uint8_t dots) {
                     uint8_t palette =
                         mem_read((obj.attributes & 0x10) ? OBP1_ADDRESS : OBP0_ADDRESS);
 
-                    uint8_t row = y_flip ? obj.tile_row_offset : 7 - obj.tile_row_offset;
+                    uint8_t row = y_flip ? 7 - obj.tile_row_offset : obj.tile_row_offset;
                     if (obj.tile_row_offset <= 7) {
                         // Render top tile
-                        uint8_t top_tile_index = obj.tile_index;
-                        if (obj_size) {
-                            top_tile_index &= 0xFE;
-                            if (y_flip)
-                                top_tile_index |= 0x01;
-                        }
+                        uint8_t top_tile_index =
+                            (obj_size) ? ((y_flip) ? obj.tile_index | 0x01 : obj.tile_index & 0xFE)
+                                       : obj.tile_index;
 
                         uint16_t top_tile_address = 0x8000 + top_tile_index * 16;
                         uint16_t top_tile_row_address = top_tile_address + row * 2;
@@ -345,6 +339,7 @@ void tick(uint8_t dots) {
                             printf("Error: This shouldn't happen!\n");
                         }
                         // Render bottom tile for 8x16 mode
+                        uint8_t row = y_flip ? 15 - obj.tile_row_offset : obj.tile_row_offset - 8;
                         uint8_t bottom_tile_index =
                             y_flip ? obj.tile_index & 0xFE : obj.tile_index | 0x01;
 

@@ -44,7 +44,7 @@ void bus_write(uint16_t address, uint8_t value) {
 
 void test_objects() {
     // Disable BG/window, enable objects, 8x8 sprites
-    mem_write(0xFF40, 0x82); // LCDC: LCD on, OBJ on, BG off
+    mem_write(0xFF40, 0x82 | 0x04); // LCDC: LCD on, OBJ on, BG off
 
     // Set OBP0 palette
     mem_write(0xFF48, 0xE4); // OBP0: 11 10 01 00
@@ -74,7 +74,7 @@ void test_objects() {
     mem_write(0xFE00, 96);   // Y position
     mem_write(0xFE01, 88);   // X position
     mem_write(0xFE02, 0x00); // tile index 0
-    mem_write(0xFE03, 0x00); // attributes: palette 0, no flip, priority 0
+    mem_write(0xFE03, 0x40); // attributes: palette 0, no flip, priority 0
 
     // Write OAM entry 1 — sprite in top left
     mem_write(0xFE04, 16);   // Y = 0 on screen
@@ -83,10 +83,70 @@ void test_objects() {
     mem_write(0xFE07, 0x00); // attributes
 
     // Write OAM entry 2 — sprite in bottom right
-    mem_write(0xFE08, 159);  // Y = 143 on screen
-    mem_write(0xFE09, 168);  // X = 160 on screen
+    mem_write(0xFE08, 152);  // Y = 143 on screen
+    mem_write(0xFE09, 160);  // X = 160 on screen
     mem_write(0xFE0A, 0x00); // tile index 0
     mem_write(0xFE0B, 0x00); // attributes
+}
+void test_sprites_8x16() {
+    // LCD on, BG off, OBJ on, 8x16 sprites (LCDC bit 2)
+    mem_write(0xFF40, 0x86); // 10000100
+
+    // OBP0 palette
+    mem_write(0xFF48, 0xE4); // 11 10 01 00
+
+    // Tile 0 (top half of sprite): head
+    uint8_t head[16] = {
+        0x3C, 0x3C, // 00111100
+        0x7E, 0x7E, // 01111110
+        0xFF, 0xFF, // 11111111
+        0xDB, 0xDB, // 11011011 (eyes)
+        0xFF, 0xFF, // 11111111
+        0xE7, 0xE7, // 11100111 (mouth)
+        0x7E, 0x7E, // 01111110
+        0x3C, 0x3C  // 00111100
+    };
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8000 + i, head[i]);
+
+    // Tile 1 (bottom half of sprite): body
+    uint8_t body[16] = {0x3C, 0x3C,             // 00111100 shoulders
+                        0x7E, 0x7E,             // 01111110
+                        0x7E, 0x7E,             // 01111110
+                        0x3C, 0x3C,             // 00111100 waist
+                        0x66, 0x66,             // 01100110 legs
+                        0x66, 0x66, 0x42, 0x42, // 01000010 feet
+                        0x42, 0x42};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8010 + i, body[i]);
+
+    // In 8x16 mode, tile index LSB is ignored
+    // top tile is always even, bottom is always odd
+    // so tile index 0 uses tiles 0 and 1
+
+    // Sprite 0: center of screen
+    mem_write(0xFE00, 88);   // Y = 72 on screen (88 - 16)
+    mem_write(0xFE01, 88);   // X = 80 on screen (88 - 8)
+    mem_write(0xFE02, 0x00); // tile index 0 (uses tiles 0 and 1)
+    mem_write(0xFE03, 0x00); // no flip, palette 0, priority 0
+
+    // Sprite 1: horizontally flipped
+    mem_write(0xFE04, 88);  // same Y
+    mem_write(0xFE05, 112); // X = 104 on screen
+    mem_write(0xFE06, 0x00);
+    mem_write(0xFE07, 0x20); // bit 5 = horizontal flip
+
+    // Sprite 2: vertically flipped
+    mem_write(0xFE08, 88);
+    mem_write(0xFE09, 136); // X = 128 on screen
+    mem_write(0xFE0A, 0x00);
+    mem_write(0xFE0B, 0x40); // bit 6 = vertical flip
+
+    // Sprite 3: both flipped
+    mem_write(0xFE0C, 88);
+    mem_write(0xFE0D, 160); // X = 152 on screen
+    mem_write(0xFE0E, 0x00);
+    mem_write(0xFE0F, 0x60); // bits 5 and 6 = both flipped
 }
 
 void test_background() {
@@ -228,8 +288,9 @@ void gb_init(FILE *rom) {
     // Load game ROM
     cartridge_load(rom);
 
-    //    test_objects();
-    test_background();
+    // test_objects();
+    test_sprites_8x16();
+    // test_background();
 
     // Initialize PPU
     ppu_init(mem_read, mem_write);
