@@ -14,6 +14,8 @@ struct PixelData {
     bool transparent;
 };
 
+SDL_Window *get_window();
+
 void present_frame();
 void update_framebuffer(struct PixelData pd, uint8_t x, uint8_t y);
 void update_obj_framebuffer(struct PixelData pd, bool priority, uint8_t x, uint8_t y);

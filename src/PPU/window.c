@@ -1,4 +1,5 @@
 #include "window.h"
+#include <SDL2/SDL_video.h>
 
 static SDL_Window *window;     // Pointer to the SDL window
 static SDL_Renderer *renderer; // Pointer to SDL renderer
@@ -7,6 +8,8 @@ static SDL_Texture *texture;
 static bool transparency[160];
 
 static uint32_t framebuffer[160 * 144];
+
+SDL_Window *get_window() { return window; }
 
 void present_frame() {
     void *pixels;

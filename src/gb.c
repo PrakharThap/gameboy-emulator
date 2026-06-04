@@ -42,152 +42,53 @@ void bus_write(uint16_t address, uint8_t value) {
     }
 }
 
-void test_objects() {
-    // Disable BG/window, enable objects, 8x8 sprites
-    mem_write(0xFF40, 0x82 | 0x04); // LCDC: LCD on, OBJ on, BG off
+void test_full_ppu() {
+    // LCD on, BG on, Window on, OBJ on, 8x8 sprites
+    // BG tile map 0x9800, Window tile map 0x9C00, tile data 0x8000
+    mem_write(0xFF40, 0xB3); // 10110011
 
-    // Set OBP0 palette
+    // Palettes
+    mem_write(0xFF47, 0xE4); // BGP:  11 10 01 00
     mem_write(0xFF48, 0xE4); // OBP0: 11 10 01 00
+    mem_write(0xFF49, 0x1B); // OBP1: 00 01 10 11 (inverted)
 
-    // Write a simple smiley face tile to 0x8000
-    // Each row is 2 bytes (low, high bit planes)
-    mem_write(0x8000, 0x3C);
-    mem_write(0x8001, 0x3C); // 00111100
-    mem_write(0x8002, 0x42);
-    mem_write(0x8003, 0x42); // 01000010
-    mem_write(0x8004, 0xA5);
-    mem_write(0x8005, 0xA5); // 10100101
-    mem_write(0x8006, 0x81);
-    mem_write(0x8007, 0x81); // 10000001
-    mem_write(0x8008, 0xA5);
-    mem_write(0x8009, 0xA5); // 10100101
-    mem_write(0x800A, 0x99);
-    mem_write(0x800B, 0x99); // 10011001
-    mem_write(0x800C, 0x42);
-    mem_write(0x800D, 0x42); // 01000010
-    mem_write(0x800E, 0x3C);
-    mem_write(0x800F, 0x3C); // 00111100
+    // Scroll
+    mem_write(0xFF42, 6); // SCY
+    mem_write(0xFF43, 4); // SCX
 
-    // Write OAM entry 0 — sprite at center of screen
-    // Y = 80 + 16 = 96 (Y has 16 pixel bias)
-    // X = 80 + 8  = 88 (X has 8 pixel bias)
-    mem_write(0xFE00, 96);   // Y position
-    mem_write(0xFE01, 88);   // X position
-    mem_write(0xFE02, 0x00); // tile index 0
-    mem_write(0xFE03, 0x40); // attributes: palette 0, no flip, priority 0
+    // Window position (HUD at bottom)
+    mem_write(0xFF4A, 120); // WY = 120
+    mem_write(0xFF4B, 7);   // WX = 7 (x=0)
 
-    // Write OAM entry 1 — sprite in top left
-    mem_write(0xFE04, 16);   // Y = 0 on screen
-    mem_write(0xFE05, 8);    // X = 0 on screen
-    mem_write(0xFE06, 0x00); // tile index 0
-    mem_write(0xFE07, 0x00); // attributes
+    // =====================
+    // TILE DATA
+    // =====================
 
-    // Write OAM entry 2 — sprite in bottom right
-    mem_write(0xFE08, 152);  // Y = 143 on screen
-    mem_write(0xFE09, 160);  // X = 160 on screen
-    mem_write(0xFE0A, 0x00); // tile index 0
-    mem_write(0xFE0B, 0x00); // attributes
-}
-void test_sprites_8x16() {
-    // LCD on, BG off, OBJ on, 8x16 sprites (LCDC bit 2)
-    mem_write(0xFF40, 0x86); // 10000100
-
-    // OBP0 palette
-    mem_write(0xFF48, 0xE4); // 11 10 01 00
-
-    // Tile 0 (top half of sprite): head
-    uint8_t head[16] = {
-        0x3C, 0x3C, // 00111100
-        0x7E, 0x7E, // 01111110
-        0xFF, 0xFF, // 11111111
-        0xDB, 0xDB, // 11011011 (eyes)
-        0xFF, 0xFF, // 11111111
-        0xE7, 0xE7, // 11100111 (mouth)
-        0x7E, 0x7E, // 01111110
-        0x3C, 0x3C  // 00111100
-    };
-    for (int i = 0; i < 16; i++)
-        mem_write(0x8000 + i, head[i]);
-
-    // Tile 1 (bottom half of sprite): body
-    uint8_t body[16] = {0x3C, 0x3C,             // 00111100 shoulders
-                        0x7E, 0x7E,             // 01111110
-                        0x7E, 0x7E,             // 01111110
-                        0x3C, 0x3C,             // 00111100 waist
-                        0x66, 0x66,             // 01100110 legs
-                        0x66, 0x66, 0x42, 0x42, // 01000010 feet
-                        0x42, 0x42};
-    for (int i = 0; i < 16; i++)
-        mem_write(0x8010 + i, body[i]);
-
-    // In 8x16 mode, tile index LSB is ignored
-    // top tile is always even, bottom is always odd
-    // so tile index 0 uses tiles 0 and 1
-
-    // Sprite 0: center of screen
-    mem_write(0xFE00, 88);   // Y = 72 on screen (88 - 16)
-    mem_write(0xFE01, 88);   // X = 80 on screen (88 - 8)
-    mem_write(0xFE02, 0x00); // tile index 0 (uses tiles 0 and 1)
-    mem_write(0xFE03, 0x00); // no flip, palette 0, priority 0
-
-    // Sprite 1: horizontally flipped
-    mem_write(0xFE04, 88);  // same Y
-    mem_write(0xFE05, 112); // X = 104 on screen
-    mem_write(0xFE06, 0x00);
-    mem_write(0xFE07, 0x20); // bit 5 = horizontal flip
-
-    // Sprite 2: vertically flipped
-    mem_write(0xFE08, 88);
-    mem_write(0xFE09, 136); // X = 128 on screen
-    mem_write(0xFE0A, 0x00);
-    mem_write(0xFE0B, 0x40); // bit 6 = vertical flip
-
-    // Sprite 3: both flipped
-    mem_write(0xFE0C, 88);
-    mem_write(0xFE0D, 160); // X = 152 on screen
-    mem_write(0xFE0E, 0x00);
-    mem_write(0xFE0F, 0x60); // bits 5 and 6 = both flipped
-}
-
-void test_background() {
-    // LCD on, BG on, tile data at 0x8000, BG map at 0x9800
-    mem_write(0xFF40, 0x91);
-    mem_write(0xFF47, 0xE4); // BGP: 11 10 01 00
-
-    // Realistic scroll offset
-    mem_write(0xFF42, 3);  // SCY = 3
-    mem_write(0xFF43, 11); // SCX = 11
-
-    // Tile 0: open sky/floor (mostly empty)
+    // Tile 0: sky (empty)
     for (int i = 0; i < 16; i++)
         mem_write(0x8000 + i, 0x00);
 
-    // Tile 1: solid ground block
+    // Tile 1: solid ground
     for (int i = 0; i < 16; i++)
         mem_write(0x8010 + i, 0xFF);
 
-    // Tile 2: ground top (grass line on top, solid below)
-    uint8_t grass_top[16] = {0xFF, 0x00, // top row: dark line
-                             0xFF, 0xFF, // second row: solid
-                             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    // Tile 2: grass top
+    uint8_t grass[16] = {0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     for (int i = 0; i < 16; i++)
-        mem_write(0x8020 + i, grass_top[i]);
+        mem_write(0x8020 + i, grass[i]);
 
-    // Tile 3: brick wall pattern
-    uint8_t brick[16] = {0xFF, 0xFF,             // mortar line
-                         0x11, 0x00,             // brick
-                         0x11, 0x00, 0xFF, 0xFF, // mortar line
-                         0x44, 0x00,             // offset brick
-                         0x44, 0x00, 0xFF, 0xFF, 0x11, 0x00};
+    // Tile 3: brick
+    uint8_t brick[16] = {0xFF, 0xFF, 0x11, 0x00, 0x11, 0x00, 0xFF, 0xFF,
+                         0x44, 0x00, 0x44, 0x00, 0xFF, 0xFF, 0x11, 0x00};
     for (int i = 0; i < 16; i++)
         mem_write(0x8030 + i, brick[i]);
 
-    // Tile 4: window/door frame
-    uint8_t door[16] = {0xFF, 0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
-                        0x99, 0x99, 0x99, 0x99, 0x81, 0x81, 0xFF, 0xFF};
+    // Tile 4: tree top
+    uint8_t treetop[16] = {0x18, 0x18, 0x3C, 0x3C, 0x7E, 0x7E, 0xFF, 0xFF,
+                           0xFF, 0xFF, 0x7E, 0x7E, 0x3C, 0x3C, 0x18, 0x18};
     for (int i = 0; i < 16; i++)
-        mem_write(0x8040 + i, door[i]);
+        mem_write(0x8040 + i, treetop[i]);
 
     // Tile 5: tree trunk
     uint8_t trunk[16] = {0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
@@ -195,41 +96,62 @@ void test_background() {
     for (int i = 0; i < 16; i++)
         mem_write(0x8050 + i, trunk[i]);
 
-    // Tile 6: tree top/bush
-    uint8_t bush[16] = {0x18, 0x18, 0x3C, 0x3C, 0x7E, 0x7E, 0xFF, 0xFF,
-                        0xFF, 0xFF, 0x7E, 0x7E, 0x3C, 0x3C, 0x18, 0x18};
-    for (int i = 0; i < 16; i++)
-        mem_write(0x8060 + i, bush[i]);
-
-    // Tile 7: path/dirt (dotted texture)
+    // Tile 6: path
     uint8_t path[16] = {0x44, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00,
                         0x44, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00};
     for (int i = 0; i < 16; i++)
-        mem_write(0x8070 + i, path[i]);
+        mem_write(0x8060 + i, path[i]);
 
-    // Build a platformer/overworld style map
-    // 0=sky, 1=solid, 2=grass top, 3=brick, 4=door, 5=trunk, 6=bush, 7=path
-    uint8_t map[32][32] = {
+    // Tile 7: cloud
+    uint8_t cloud[16] = {0x00, 0x00, 0x1C, 0x1C, 0x7F, 0x7F, 0xFF, 0xFF,
+                         0xFF, 0xFF, 0x7F, 0x7F, 0x00, 0x00, 0x00, 0x00};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8070 + i, cloud[i]);
+
+    // Tile 8: HUD empty (for window)
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8080 + i, 0x00);
+
+    // Tile 9: HUD border
+    uint8_t hud_border[16] = {0xFF, 0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
+                              0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF, 0xFF};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8090 + i, hud_border[i]);
+
+    // Tile 10: HUD filled (health bar full)
+    uint8_t hud_full[16] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x80A0 + i, hud_full[i]);
+
+    // Tile 11: HUD empty bar
+    uint8_t hud_empty[16] = {0xFF, 0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
+                             0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF, 0xFF};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x80B0 + i, hud_empty[i]);
+
+    // =====================
+    // BACKGROUND TILE MAP (0x9800)
+    // =====================
+    uint8_t bg_map[32][32] = {
+        {0, 0, 7, 0, 0, 0, 7, 7, 0, 0, 0, 0, 7, 0, 0, 0,
+         0, 7, 0, 0, 0, 0, 0, 7, 0, 0, 0, 7, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-         6, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
-         5, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 5, 0, 0, 0, 3, 3, 3, 0, 0, 0, 5,
-         5, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 5, 0, 0, 0, 3, 4, 3, 0, 0, 0, 5,
-         5, 0, 0, 0, 3, 3, 3, 0, 5, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0,
+         0, 0, 0, 4, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0,
+         0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 5, 0, 0, 3, 3, 0, 5, 5, 0, 0, 0, 3,
+         3, 3, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 3, 3, 0, 0},
+        {0, 0, 0, 0, 5, 0, 0, 3, 3, 0, 5, 5, 0, 0, 0, 3,
+         3, 3, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 3, 3, 0, 0},
         {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
          2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-        {1, 1, 1, 7, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1, 7, 7,
-         7, 7, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1},
-        {1, 1, 1, 7, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1, 7, 7,
-         7, 7, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 6, 6, 6, 1, 1, 1, 1, 1, 1, 1, 6, 6, 6,
+         1, 1, 1, 1, 1, 1, 6, 6, 6, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 6, 6, 6, 1, 1, 1, 1, 1, 1, 1, 6, 6, 6,
+         1, 1, 1, 1, 1, 1, 6, 6, 6, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -238,24 +160,24 @@ void test_background() {
          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 7, 0, 0, 7, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,
+         7, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 7, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0,
-         0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
-         0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 5, 0, 0, 0, 3, 3, 0, 0, 0, 0, 5, 0, 0,
-         0, 3, 3, 3, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 5, 0, 0, 0, 3, 3, 0, 0, 0, 0, 5, 0, 0,
-         0, 3, 4, 3, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0},
+        {0, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 4, 4, 0,
+         0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0},
+        {0, 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 5, 5, 0,
+         0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0},
+        {0, 0, 5, 0, 3, 3, 0, 5, 0, 0, 0, 3, 0, 5, 5, 0,
+         0, 3, 3, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 3, 3, 0},
+        {0, 0, 5, 0, 3, 3, 0, 5, 0, 0, 0, 3, 0, 5, 5, 0,
+         0, 3, 3, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 3, 3, 0},
         {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
          2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-        {1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1, 7,
-         7, 1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1, 7,
-         7, 1, 1, 1, 1, 1, 7, 7, 7, 1, 1, 1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 6, 6, 1, 1, 1, 1, 1, 1, 6, 6, 1, 1,
+         1, 1, 1, 6, 6, 1, 1, 1, 1, 6, 6, 1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 6, 6, 1, 1, 1, 1, 1, 1, 6, 6, 1, 1,
+         1, 1, 1, 6, 6, 1, 1, 1, 1, 6, 6, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -264,21 +186,106 @@ void test_background() {
          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 7, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 7, 0,
+         0, 0, 7, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 6, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 0, 0,
-         0, 0, 6, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0},
-        {0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0,
-         0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0},
-        {0, 0, 5, 0, 0, 3, 3, 0, 0, 5, 5, 0, 0, 0, 3, 3,
-         3, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0, 3, 3, 0, 0},
+        {0, 4, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 4, 0, 0,
+         0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0},
+        {0, 5, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 5, 0, 0,
+         0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0},
+        {0, 5, 0, 3, 3, 0, 0, 5, 5, 0, 0, 3, 0, 5, 0, 0,
+         0, 3, 3, 0, 5, 5, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0},
         {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
          2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
     };
 
     for (int row = 0; row < 32; row++)
         for (int col = 0; col < 32; col++)
-            mem_write(0x9800 + row * 32 + col, map[row][col]);
+            mem_write(0x9800 + row * 32 + col, bg_map[row][col]);
+
+    // =====================
+    // WINDOW TILE MAP (0x9C00) - HUD
+    // =====================
+    // Top border row
+    for (int col = 0; col < 20; col++)
+        mem_write(0x9C00 + col, 9); // border tile
+
+    // Middle rows: health bar on left, empty space on right
+    for (int row = 1; row < 2; row++) {
+        mem_write(0x9C00 + row * 32 + 0, 9);  // left border
+        mem_write(0x9C00 + row * 32 + 1, 10); // full health
+        mem_write(0x9C00 + row * 32 + 2, 10);
+        mem_write(0x9C00 + row * 32 + 3, 10);
+        mem_write(0x9C00 + row * 32 + 4, 11); // empty health
+        mem_write(0x9C00 + row * 32 + 5, 11);
+        mem_write(0x9C00 + row * 32 + 6, 9); // divider
+        for (int col = 7; col < 19; col++)
+            mem_write(0x9C00 + row * 32 + col, 8); // empty space
+        mem_write(0x9C00 + row * 32 + 19, 9);      // right border
+    }
+
+    // Bottom border row
+    for (int col = 0; col < 20; col++)
+        mem_write(0x9C00 + 2 * 32 + col, 9); // border tile
+
+    // =====================
+    // SPRITES (OAM)
+    // =====================
+
+    // Sprite tile: character body
+    uint8_t char_body[16] = {0x3C, 0x3C, 0x7E, 0x7E, 0xFF, 0xDB, 0xFF, 0xFF,
+                             0xE7, 0xE7, 0x7E, 0x42, 0x3C, 0x3C, 0x18, 0x18};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8100 + i, char_body[i]);
+
+    // Sprite tile: enemy (ghost like)
+    uint8_t enemy[16] = {0x3C, 0x3C, 0x7E, 0x7E, 0xDB, 0xFF, 0xFF, 0xFF,
+                         0xFF, 0xFF, 0xFF, 0xFF, 0xAD, 0xAD, 0x55, 0x55};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8110 + i, enemy[i]);
+
+    // Sprite tile: coin/item
+    uint8_t coin[16] = {0x18, 0x18, 0x3C, 0x3C, 0x7E, 0x66, 0xFF, 0x66,
+                        0xFF, 0x66, 0x7E, 0x66, 0x3C, 0x3C, 0x18, 0x18};
+    for (int i = 0; i < 16; i++)
+        mem_write(0x8120 + i, coin[i]);
+
+    // Player character - center left of screen
+    mem_write(0xFE00, 72);   // Y = 56 on screen
+    mem_write(0xFE01, 48);   // X = 40 on screen
+    mem_write(0xFE02, 0x10); // tile index 16 (char_body at 0x8100)
+    mem_write(0xFE03, 0x00); // OBP0, priority 0
+
+    // Enemy 1
+    mem_write(0xFE04, 72);
+    mem_write(0xFE05, 120);
+    mem_write(0xFE06, 0x11); // tile index 17 (enemy at 0x8110)
+    mem_write(0xFE07, 0x10); // OBP1
+
+    // Enemy 2 - horizontally flipped
+    mem_write(0xFE08, 72);
+    mem_write(0xFE09, 96);
+    mem_write(0xFE0A, 0x11);
+    mem_write(0xFE0B, 0x30); // OBP1 + h-flip
+
+    // Coin 1
+    mem_write(0xFE0C, 56);
+    mem_write(0xFE0D, 72);
+    mem_write(0xFE0E, 0x12); // tile index 18 (coin at 0x8120)
+    mem_write(0xFE0F, 0x00); // OBP0
+
+    // Coin 2
+    mem_write(0xFE10, 56);
+    mem_write(0xFE11, 88);
+    mem_write(0xFE12, 0x12);
+    mem_write(0xFE13, 0x00);
+
+    // Sprite behind background (priority 1)
+    mem_write(0xFE14, 80);
+    mem_write(0xFE15, 136);
+    mem_write(0xFE16, 0x11);
+    mem_write(0xFE17, 0x90); // OBP1 + priority behind BG
 }
 
 void gb_init(FILE *rom) {
@@ -288,9 +295,7 @@ void gb_init(FILE *rom) {
     // Load game ROM
     cartridge_load(rom);
 
-    // test_objects();
-    test_sprites_8x16();
-    // test_background();
+    test_full_ppu();
 
     // Initialize PPU
     ppu_init(mem_read, mem_write);
