@@ -99,7 +99,8 @@ uint16_t get_r16mem(uint8_t indx) {
     }
 }
 
-uint8_t get_pc_val() { return mem_read(registers.pc); }
+uint16_t get_pc() { return registers.pc; }
+uint8_t get_opcode() { return mem_read(registers.pc++); }
 
 void set_r8(uint8_t indx, uint8_t value) {
     switch (indx) {

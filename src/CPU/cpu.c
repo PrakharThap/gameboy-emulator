@@ -5,17 +5,16 @@ static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
 int execute() {
-    uint8_t pc = get_pc_val();
-    set_pc(pc + 1);
+    uint8_t opcode = get_opcode();
 
-    uint8_t first_two_bits = (pc >> 6) & 0x03;
+    uint8_t first_two_bits = (opcode >> 6) & 0x03;
 
     // Block 0
     if (first_two_bits == 0) {
-        uint8_t last_four_bits = pc & 0x0F;
-        uint8_t middle_two_bits = (pc >> 4) & 0x03;
+        uint8_t last_four_bits = opcode & 0x0F;
+        uint8_t middle_two_bits = (opcode >> 4) & 0x03;
         // nop
-        if (pc == 0x00) {
+        if (opcode == 0x00) {
             return 1;
         }
         // ld r16, imm16
@@ -34,7 +33,7 @@ int execute() {
             return 2;
         }
         // ld [imm16], sp
-        if (pc == 0x08) {
+        if (opcode == 0x08) {
             uint16_t sp = get_r16(SP);
             uint16_t addr = read_imm16();
 
@@ -68,8 +67,8 @@ int execute() {
             return 2;
         }
 
-        uint8_t middle_three_bits = (pc >> 3) & 0x07;
-        uint8_t last_three_bits = pc & 0x07;
+        uint8_t middle_three_bits = (opcode >> 3) & 0x07;
+        uint8_t last_three_bits = opcode & 0x07;
 
         // inc r8
         if (last_three_bits == 4) {
@@ -91,7 +90,7 @@ int execute() {
             set_r8(middle_three_bits, r8 - 1);
             int z_flag = get_r8(middle_three_bits) == 0 ? 1 : 0;
 
-            set_flags(z_flag, 0, h_flag, -1);
+            set_flags(z_flag, 1, h_flag, -1);
 
             return 1;
         }
@@ -103,7 +102,7 @@ int execute() {
         }
 
         // rlca
-        if (pc == 0x07) {
+        if (opcode == 0x07) {
             uint8_t a = get_r8(A);
             int bit7 = (a >> 7) & 0x01;
 
@@ -112,7 +111,7 @@ int execute() {
             return 1;
         }
         // rrca
-        if (pc == 0x0F) {
+        if (opcode == 0x0F) {
             uint8_t a = get_r8(A);
             int bit0 = a & 0x01;
 
@@ -132,7 +131,7 @@ int execute() {
             return 1;
         }
         // rra
-        if (pc == 0x1F) {
+        if (opcode == 0x1F) {
             uint8_t a = get_r8(A);
             int bit0 = a & 0x01;
             int c_flag = get_flag(FLAG_C);
@@ -144,7 +143,7 @@ int execute() {
         }
 
         // daa
-        if (pc == 0x27) {
+        if (opcode == 0x27) {
             uint8_t a = get_r8(A);
             int n_flag = get_flag(FLAG_N);
             int h_flag = get_flag(FLAG_H);
@@ -172,25 +171,70 @@ int execute() {
             return 1;
         }
         // cpl
-        if (pc == 0x2F) {
+        if (opcode == 0x2F) {
             set_r8(A, ~get_r8(A));
             set_flags(-1, 1, 1, -1);
             return 1;
         }
         // scf
-        if (pc == 0x37) {
+        if (opcode == 0x37) {
             set_flags(-1, 0, 0, 1);
             return 1;
         }
         // ccf
-        if (pc == 0x3F) {
+        if (opcode == 0x3F) {
             set_flags(-1, 0, 0, get_flag(FLAG_C) == 0 ? 1 : 0);
+            return 1;
         }
 
         // jr imm8
+        if (opcode == 0x18) {
+            int32_t jump = read_imm8();
+            set_pc(get_pc() + jump);
+
+            return 3;
+        }
+        // jr cond, imm8
+        uint8_t first_three_bits = (opcode >> 5) & 0x07;
+        if (last_three_bits == 0 && first_three_bits == 1) {
+            int32_t jump = read_imm8();
+            int z_flag = get_flag(FLAG_Z);
+            int c_flag = get_flag(FLAG_C);
+
+            uint8_t cond = (opcode >> 3) & 0x03;
+            bool cond_met = false;
+
+            switch (cond) {
+            case COND_NZ:
+                cond_met = z_flag == 0;
+                break;
+            case COND_Z:
+                cond_met = z_flag == 1;
+                break;
+            case COND_NC:
+                cond_met = c_flag == 0;
+                break;
+            case COND_C:
+                cond_met = c_flag == 1;
+                break;
+            }
+
+            if (cond_met) {
+                set_pc(get_pc() + jump);
+                return 3;
+            } else {
+                return 2;
+            }
+        }
+
+        // stop
+        if (opcode == 0x10) {
+            read_imm8();
+            return 0;
+        }
     }
 
-    printf("Incorrect CPU instruction found: 0x%04X", pc);
+    printf("Incorrect CPU instruction found: 0x%04X", opcode);
     exit(1);
 }
 

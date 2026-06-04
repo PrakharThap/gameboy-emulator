@@ -22,6 +22,11 @@
 #define HLI 2
 #define HLD 3
 
+#define COND_NZ 0
+#define COND_Z 1
+#define COND_NC 2
+#define COND_C 3
+
 #define FLAG_Z 7
 #define FLAG_N 6
 #define FLAG_H 5
@@ -65,7 +70,9 @@ uint8_t get_r8(uint8_t indx);
 uint16_t get_r16(uint8_t indx);
 uint16_t get_r16stk(uint8_t indx);
 uint16_t get_r16mem(uint8_t indx);
-uint8_t get_pc_val();
+
+uint16_t get_pc();
+uint8_t get_opcode();
 
 void set_r8(uint8_t indx, uint8_t value);
 void set_r16(uint8_t indx, uint16_t value);
