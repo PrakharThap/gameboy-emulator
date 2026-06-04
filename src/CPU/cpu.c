@@ -120,7 +120,7 @@ int execute() {
             return 1;
         }
         // rla
-        if (pc == 0x17) {
+        if (opcode == 0x17) {
             uint8_t a = get_r8(A);
             int bit7 = (a >> 7) & 0x01;
             int c_flag = get_flag(FLAG_C);
@@ -231,6 +231,132 @@ int execute() {
         if (opcode == 0x10) {
             read_imm8();
             return 0;
+        }
+    }
+
+    // Block 1
+    if (first_two_bits == 1) {
+        // halt
+        if (opcode == 0x76) {
+        }
+
+        // ld r8, r8
+        uint8_t middle_three_bits = (opcode >> 3) & 0x07;
+        uint8_t last_three_bits = opcode & 0x07;
+
+        set_r8(middle_three_bits, get_r8(last_three_bits));
+
+        return 1;
+    }
+
+    // Block 2
+    if (first_two_bits == 2) {
+        uint8_t middle_three_bits = (opcode >> 3) & 0x07;
+        uint8_t operand = opcode & 0x07;
+
+        // add a, r8
+        if (middle_three_bits == 0) {
+            uint8_t a = get_r8(A);
+            uint8_t r8 = get_r8(operand);
+
+            int h_flag = ((a & 0x0F) + (r8 & 0x0F)) > 0x0F ? 1 : 0;
+            int c_flag = ((uint16_t)a + r8) > 0xFF ? 1 : 0;
+
+            set_r8(A, a + r8);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, h_flag, c_flag);
+
+            return 1;
+        }
+        // adc a, r8
+        if (middle_three_bits == 1) {
+            uint8_t a = get_r8(A);
+            uint8_t r8 = get_r8(operand);
+            uint8_t carry = get_flag(FLAG_C);
+
+            int h_flag = ((a & 0x0F) + (r8 & 0x0F) + carry) > 0x0F ? 1 : 0;
+            int c_flag = ((uint16_t)a + r8 + carry) > 0xFF ? 1 : 0;
+
+            set_r8(A, a + r8 + carry);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, h_flag, c_flag);
+
+            return 1;
+        }
+        // sub a, r8
+        if (middle_three_bits == 2) {
+            uint8_t a = get_r8(A);
+            uint8_t r8 = get_r8(operand);
+
+            int h_flag = (r8 & 0x0F) > (a & 0x0F) ? 1 : 0;
+            int c_flag = r8 > a ? 1 : 0;
+
+            set_r8(A, a - r8);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 1, h_flag, c_flag);
+
+            return 1;
+        }
+        // sbc a, r8
+        if (middle_three_bits == 3) {
+            uint8_t a = get_r8(A);
+            uint8_t r8 = get_r8(operand);
+            uint8_t carry = get_flag(FLAG_C);
+
+            int h_flag = (r8 & 0x0F) + carry > (a & 0x0F) ? 1 : 0;
+            int c_flag = (uint16_t)r8 + carry > a ? 1 : 0;
+
+            set_r8(A, a - r8 - carry);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 1, h_flag, c_flag);
+
+            return 1;
+        }
+        // and a, r8
+        if (middle_three_bits == 4) {
+            set_r8(A, get_r8(A) & get_r8(operand));
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, 1, 0);
+
+            return 1;
+        }
+        // xor a, r8
+        if (middle_three_bits == 5) {
+            set_r8(A, get_r8(A) ^ get_r8(operand));
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, 0, 0);
+
+            return 1;
+        }
+        // or a, r8
+        if (middle_three_bits == 6) {
+            set_r8(A, get_r8(A) | get_r8(operand));
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, 0, 0);
+
+            return 1;
+        }
+        // cp a, r8
+        if (middle_three_bits == 7) {
+            uint8_t a = get_r8(A);
+            uint8_t r8 = get_r8(operand);
+
+            int h_flag = (r8 & 0x0F) > (a & 0x0F) ? 1 : 0;
+            int c_flag = r8 > a ? 1 : 0;
+
+            uint8_t comp = a - r8;
+            int z_flag = comp == 0 ? 1 : 0;
+
+            set_flags(z_flag, 1, h_flag, c_flag);
+
+            return 1;
         }
     }
 
