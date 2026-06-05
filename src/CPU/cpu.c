@@ -568,6 +568,38 @@ int execute() {
             return 4;
         }
 
+        uint8_t last_four_bits = opcode & 0x0F;
+        uint8_t r16stk = (opcode >> 4) & 0x03;
+        // pop r16stk
+        if (last_four_bits == 0x01) {
+            uint16_t low_byte = mem_read(get_r16(SP));
+            set_r16(SP, get_r16(SP) + 1); // Pop low
+            uint16_t high_byte = mem_read(get_r16(SP));
+            set_r16(SP, get_r16(SP) + 1); // Pop high
+
+            if (r16stk == AF) {
+                int z_flag = (low_byte >> 7) & 0x01;
+                int n_flag = (low_byte >> 6) & 0x01;
+                int h_flag = (low_byte >> 5) & 0x01;
+                int c_flag = (low_byte >> 4) & 0x01;
+                set_flags(z_flag, n_flag, h_flag, c_flag);
+                set_r8(A, high_byte);
+            } else {
+                set_r16(r16stk, ((uint16_t)high_byte << 8) | low_byte);
+            }
+
+            return 3;
+        }
+        // push r16stk
+        if (last_four_bits == 0x05) {
+            set_r16(SP, get_r16(SP) - 1); // Push high
+            mem_write(get_r16(SP), (uint8_t)(get_r16stk(r16stk) >> 8));
+            set_r16(SP, get_r16(SP) - 1); // Push low
+            mem_write(get_r16(SP), (uint8_t)(get_r16stk(r16stk) & 0xFF));
+
+            return 4;
+        }
+
         // ldh [c] a
         if (opcode == 0xE2) {
             uint8_t a = get_r8(A);
