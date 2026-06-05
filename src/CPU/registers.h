@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,5 +84,7 @@ uint16_t read_imm16();
 
 int get_flag(uint8_t indx);
 void set_flags(int z, int n, int h, int c);
+
+bool eval_cond(int cond);
 
 void registers_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t));

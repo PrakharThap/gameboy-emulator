@@ -198,28 +198,9 @@ int execute() {
         uint8_t first_three_bits = (opcode >> 5) & 0x07;
         if (last_three_bits == 0 && first_three_bits == 1) {
             int32_t jump = read_imm8();
-            int z_flag = get_flag(FLAG_Z);
-            int c_flag = get_flag(FLAG_C);
-
             uint8_t cond = (opcode >> 3) & 0x03;
-            bool cond_met = false;
 
-            switch (cond) {
-            case COND_NZ:
-                cond_met = z_flag == 0;
-                break;
-            case COND_Z:
-                cond_met = z_flag == 1;
-                break;
-            case COND_NC:
-                cond_met = c_flag == 0;
-                break;
-            case COND_C:
-                cond_met = c_flag == 1;
-                break;
-            }
-
-            if (cond_met) {
+            if (eval_cond(cond)) {
                 set_pc(get_pc() + jump);
                 return 3;
             } else {
@@ -356,6 +337,326 @@ int execute() {
 
             set_flags(z_flag, 1, h_flag, c_flag);
 
+            return 1;
+        }
+    }
+
+    // Block 3
+    if (first_two_bits == 3) {
+        // add a, imm8
+        if (opcode == 0xC6) {
+            uint8_t n8 = read_imm8();
+            uint8_t a = get_r8(A);
+
+            int h_flag = ((a & 0x0F) + (n8 & 0x0F)) > 0x0F ? 1 : 0;
+            int c_flag = ((uint16_t)a + n8) > 0xFF ? 1 : 0;
+
+            set_r8(A, a + n8);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, h_flag, c_flag);
+
+            return 2;
+        }
+        // adc a, imm8
+        if (opcode == 0xCE) {
+            uint8_t a = get_r8(A);
+            uint8_t n8 = read_imm8();
+            uint8_t carry = get_flag(FLAG_C);
+
+            int h_flag = ((a & 0x0F) + (n8 & 0x0F) + carry) > 0x0F ? 1 : 0;
+            int c_flag = ((uint16_t)a + n8 + carry) > 0xFF ? 1 : 0;
+
+            set_r8(A, a + n8 + carry);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, h_flag, c_flag);
+
+            return 2;
+        }
+        // sub a, imm8
+        if (opcode == 0xD6) {
+            uint8_t a = get_r8(A);
+            uint8_t n8 = read_imm8();
+
+            int h_flag = (n8 & 0x0F) > (a & 0x0F) ? 1 : 0;
+            int c_flag = n8 > a ? 1 : 0;
+
+            set_r8(A, a - n8);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 1, h_flag, c_flag);
+
+            return 2;
+        }
+        // sbc a, imm8
+        if (opcode == 0xDE) {
+            uint8_t a = get_r8(A);
+            uint8_t n8 = read_imm8();
+            uint8_t carry = get_flag(FLAG_C);
+
+            int h_flag = (n8 & 0x0F) + carry > (a & 0x0F) ? 1 : 0;
+            int c_flag = (uint16_t)n8 + carry > a ? 1 : 0;
+
+            set_r8(A, a - n8 - carry);
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 1, h_flag, c_flag);
+
+            return 2;
+        }
+        // and a, imm8
+        if (opcode == 0xE6) {
+            set_r8(A, get_r8(A) & read_imm8());
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, 1, 0);
+
+            return 2;
+        }
+        // xor a, imm8
+        if (opcode == 0xEE) {
+            set_r8(A, get_r8(A) ^ read_imm8());
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, 0, 0);
+
+            return 2;
+        }
+        // or a, imm8
+        if (opcode == 0xF6) {
+            set_r8(A, get_r8(A) | read_imm8());
+            int z_flag = get_r8(A) == 0 ? 1 : 0;
+
+            set_flags(z_flag, 0, 0, 0);
+
+            return 2;
+        }
+        // cp a, imm8
+        if (opcode == 0xFE) {
+            uint8_t a = get_r8(A);
+            uint8_t n8 = read_imm8();
+
+            int h_flag = (n8 & 0x0F) > (a & 0x0F) ? 1 : 0;
+            int c_flag = n8 > a ? 1 : 0;
+
+            uint8_t comp = a - n8;
+            int z_flag = comp == 0 ? 1 : 0;
+
+            set_flags(z_flag, 1, h_flag, c_flag);
+
+            return 2;
+        }
+
+        uint8_t first_three_bits = (opcode >> 5) & 0x07;
+        uint8_t last_three_bits = opcode & 0x07;
+        // ret cond
+        if (first_three_bits == 6 && last_three_bits == 0) {
+            uint8_t cond = (opcode >> 3) & 0x03;
+
+            if (eval_cond(cond)) {
+                uint16_t low_byte = mem_read(get_r16(SP));
+                set_r16(SP, get_r16(SP) + 1); // Pop low
+                uint16_t high_byte = mem_read(get_r16(SP));
+                set_r16(SP, get_r16(SP) + 1); // Pop high
+
+                set_pc(((uint16_t)high_byte << 8) | low_byte);
+                return 5;
+            } else {
+                return 2;
+            }
+        }
+        // ret
+        if (opcode == 0xC9) {
+            uint16_t low_byte = mem_read(get_r16(SP));
+            set_r16(SP, get_r16(SP) + 1); // Pop low
+            uint16_t high_byte = mem_read(get_r16(SP));
+            set_r16(SP, get_r16(SP) + 1); // Pop high
+
+            set_pc(((uint16_t)high_byte << 8) | low_byte);
+            return 4;
+        }
+        // reti
+        if (opcode == 0xD9) {
+            uint16_t low_byte = mem_read(get_r16(SP));
+            set_r16(SP, get_r16(SP) + 1); // Pop low
+            uint16_t high_byte = mem_read(get_r16(SP));
+            set_r16(SP, get_r16(SP) + 1); // Pop high
+
+            set_pc(((uint16_t)high_byte << 8) | low_byte);
+            // Enable IME
+            return 4;
+        }
+        // jp cond, imm16
+        if (first_three_bits == 6 && last_three_bits == 2) {
+            uint8_t cond = (opcode >> 3) & 0x03;
+            uint16_t addr = read_imm16();
+
+            if (eval_cond(cond)) {
+                set_pc(addr);
+                return 4;
+            } else {
+                return 3;
+            }
+        }
+        // jp imm16
+        if (opcode == 0xC3) {
+            uint16_t addr = read_imm16();
+
+            set_pc(addr);
+            return 4;
+        }
+        // jp hl
+        if (opcode == 0xE9) {
+            uint16_t hl = get_r16(HL);
+
+            set_pc(hl);
+            return 1;
+        }
+        // call cond, imm16
+        if (first_three_bits == 6 && last_three_bits == 4) {
+            uint8_t cond = (opcode >> 3) & 0x03;
+            uint16_t jp_addr = read_imm16();
+
+            if (eval_cond(cond)) {
+                uint16_t curr_addr = get_pc();
+                set_r16(SP, get_r16(SP) - 1); // Push high
+                mem_write(get_r16(SP), (uint8_t)(curr_addr >> 8));
+                set_r16(SP, get_r16(SP) - 1); // Push low
+                mem_write(get_r16(SP), (uint8_t)(curr_addr & 0x0F));
+
+                set_pc(jp_addr);
+
+                return 6;
+            } else {
+                return 3;
+            }
+        }
+        // call imm16
+        if (opcode == 0xCD) {
+            uint16_t jp_addr = read_imm16();
+
+            uint16_t curr_addr = get_pc();
+            set_r16(SP, get_r16(SP) - 1); // Push high
+            mem_write(get_r16(SP), (uint8_t)(curr_addr >> 8));
+            set_r16(SP, get_r16(SP) - 1); // Push low
+            mem_write(get_r16(SP), (uint8_t)(curr_addr & 0x0F));
+
+            set_pc(jp_addr);
+
+            return 6;
+        }
+        // rst tgt3
+        if (last_three_bits == 7) {
+            uint8_t tgt3 = (opcode >> 3) & 0x07;
+            uint16_t jp_addr = tgt3 * 8;
+
+            uint16_t curr_addr = get_pc();
+            set_r16(SP, get_r16(SP) - 1); // Push high
+            mem_write(get_r16(SP), (uint8_t)(curr_addr >> 8));
+            set_r16(SP, get_r16(SP) - 1); // Push low
+            mem_write(get_r16(SP), (uint8_t)(curr_addr & 0x0F));
+
+            set_pc(jp_addr);
+
+            return 4;
+        }
+
+        // ldh [c] a
+        if (opcode == 0xE2) {
+            uint8_t a = get_r8(A);
+            uint8_t c = get_r8(C);
+
+            mem_write(0xFF00 | c, a);
+
+            return 2;
+        }
+        // ldh [imm8], a
+        if (opcode == 0xE0) {
+            uint8_t a = get_r8(A);
+            uint8_t n8 = read_imm8();
+
+            mem_write(0xFF00 | n8, a);
+
+            return 3;
+        }
+        // ld [imm16], a
+        if (opcode == 0xEA) {
+            uint8_t a = get_r8(A);
+            uint16_t addr = read_imm16();
+
+            mem_write(addr, a);
+
+            return 4;
+        }
+        // ldh a, [c]
+        if (opcode == 0xF2) {
+            uint8_t c = get_r8(C);
+
+            set_r8(A, mem_read(0xFF00 | c));
+
+            return 2;
+        }
+        // ldh a, [imm8]
+        if (opcode == 0xF0) {
+            uint8_t n8 = read_imm8();
+
+            set_r8(A, mem_read(0xFF00 | n8));
+
+            return 3;
+        }
+        // ld a, [imm16]
+        if (opcode == 0xFA) {
+            uint16_t addr = read_imm16();
+
+            set_r8(A, mem_read(addr));
+
+            return 4;
+        }
+
+        // add sp, imm8
+        if (opcode == 0xE8) {
+            uint16_t sp = get_r16(SP);
+            int8_t e8 = read_imm8();
+
+            uint8_t u8 = (uint8_t)e8;
+            int h_flag = ((sp & 0x0F) + (u8 & 0x0F)) > 0x0F ? 1 : 0;
+            int c_flag = ((sp & 0xFF) + u8) > 0xFF ? 1 : 0;
+
+            set_r16(SP, sp + e8);
+            set_flags(0, 0, h_flag, c_flag);
+
+            return 4;
+        }
+        // ld hl, sp + imm8
+        if (opcode == 0xF8) {
+            uint16_t sp = get_r16(SP);
+            int8_t e8 = read_imm8();
+
+            uint8_t u8 = (uint8_t)e8;
+            int h_flag = ((sp & 0x0F) + (u8 & 0x0F)) > 0x0F ? 1 : 0;
+            int c_flag = ((sp & 0xFF) + u8) > 0xFF ? 1 : 0;
+
+            set_r16(HL, sp + e8);
+            set_flags(0, 0, h_flag, c_flag);
+
+            return 3;
+        }
+        // ld sp, hl
+        if (opcode == 0xF9) {
+            set_r16(SP, get_r16(HL));
+
+            return 2;
+        }
+
+        // di
+        if (opcode == 0xF3) {
+            // Disable IME
+            return 1;
+        }
+        // ei
+        if (opcode == 0xFB) {
+            // Enable IME
             return 1;
         }
     }
