@@ -60,8 +60,8 @@ int execute() {
             uint16_t r16 = get_r16(middle_two_bits);
 
             set_r16(HL, hl + r16);
-            int h_flag = ((hl & 0x0FFF) + (r16 & 0x0FFF)) > 0x0FFF ? 1 : 0;
-            int c_flag = ((uint32_t)hl + r16) > 0xFFFF ? 1 : 0;
+            int h_flag = ((hl & 0x0FFF) + (r16 & 0x0FFF)) > 0x0FFF;
+            int c_flag = ((uint32_t)hl + r16) > 0xFFFF;
             set_flags(-1, 0, h_flag, c_flag);
 
             return 2;
@@ -73,32 +73,33 @@ int execute() {
         // inc r8
         if (last_three_bits == 4) {
             uint8_t r8 = get_r8(middle_three_bits);
-            int h_flag = (r8 & 0x0F) == 0x0F ? 1 : 0;
+            int h_flag = (r8 & 0x0F) == 0x0F;
 
             set_r8(middle_three_bits, r8 + 1);
-            int z_flag = get_r8(middle_three_bits) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(middle_three_bits) == 0;
             set_flags(z_flag, 0, h_flag, -1);
 
-            return 1;
+            return middle_three_bits != VAL_HL ? 1 : 3;
         }
         // dec r8
         if (last_three_bits == 5) {
             uint8_t r8 = get_r8(middle_three_bits);
-            int h_flag = (r8 & 0x0F) == 0x00 ? 1 : 0;
+            int h_flag = (r8 & 0x0F) == 0x00;
 
             set_r8(middle_three_bits, r8 - 1);
-            int z_flag = get_r8(middle_three_bits) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(middle_three_bits) == 0;
             set_flags(z_flag, 1, h_flag, -1);
 
-            return 1;
+            return middle_three_bits != VAL_HL ? 1 : 3;
         }
 
         // ld r8, imm8
         if (last_three_bits == 6) {
             set_r8(middle_three_bits, read_imm8());
-            return 2;
+
+            return middle_three_bits != VAL_HL ? 2 : 3;
         }
 
         // rlca
@@ -108,6 +109,7 @@ int execute() {
 
             set_r8(A, (a << 1) | bit7);
             set_flags(0, 0, 0, bit7);
+
             return 1;
         }
         // rrca
@@ -117,6 +119,7 @@ int execute() {
 
             set_r8(A, (a >> 1) | (bit0 << 7));
             set_flags(0, 0, 0, bit0);
+
             return 1;
         }
         // rla
@@ -174,16 +177,19 @@ int execute() {
         if (opcode == 0x2F) {
             set_r8(A, ~get_r8(A));
             set_flags(-1, 1, 1, -1);
+
             return 1;
         }
         // scf
         if (opcode == 0x37) {
             set_flags(-1, 0, 0, 1);
+
             return 1;
         }
         // ccf
         if (opcode == 0x3F) {
-            set_flags(-1, 0, 0, get_flag(FLAG_C) == 0 ? 1 : 0);
+            set_flags(-1, 0, 0, get_flag(FLAG_C) == 0);
+
             return 1;
         }
 
@@ -211,6 +217,7 @@ int execute() {
         // stop
         if (opcode == 0x10) {
             read_imm8();
+
             return 0;
         }
     }
@@ -219,6 +226,7 @@ int execute() {
     if (first_two_bits == 1) {
         // halt
         if (opcode == 0x76) {
+            return 1;
         }
 
         // ld r8, r8
@@ -227,7 +235,7 @@ int execute() {
 
         set_r8(middle_three_bits, get_r8(last_three_bits));
 
-        return 1;
+        return middle_three_bits != VAL_HL && last_three_bits != VAL_HL ? 1 : 2;
     }
 
     // Block 2
@@ -240,15 +248,15 @@ int execute() {
             uint8_t a = get_r8(A);
             uint8_t r8 = get_r8(operand);
 
-            int h_flag = ((a & 0x0F) + (r8 & 0x0F)) > 0x0F ? 1 : 0;
-            int c_flag = ((uint16_t)a + r8) > 0xFF ? 1 : 0;
+            int h_flag = ((a & 0x0F) + (r8 & 0x0F)) > 0x0F;
+            int c_flag = ((uint16_t)a + r8) > 0xFF;
 
             set_r8(A, a + r8);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, h_flag, c_flag);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // adc a, r8
         if (middle_three_bits == 1) {
@@ -256,30 +264,30 @@ int execute() {
             uint8_t r8 = get_r8(operand);
             uint8_t carry = get_flag(FLAG_C);
 
-            int h_flag = ((a & 0x0F) + (r8 & 0x0F) + carry) > 0x0F ? 1 : 0;
-            int c_flag = ((uint16_t)a + r8 + carry) > 0xFF ? 1 : 0;
+            int h_flag = ((a & 0x0F) + (r8 & 0x0F) + carry) > 0x0F;
+            int c_flag = ((uint16_t)a + r8 + carry) > 0xFF;
 
             set_r8(A, a + r8 + carry);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, h_flag, c_flag);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // sub a, r8
         if (middle_three_bits == 2) {
             uint8_t a = get_r8(A);
             uint8_t r8 = get_r8(operand);
 
-            int h_flag = (r8 & 0x0F) > (a & 0x0F) ? 1 : 0;
-            int c_flag = r8 > a ? 1 : 0;
+            int h_flag = (r8 & 0x0F) > (a & 0x0F);
+            int c_flag = r8 > a;
 
             set_r8(A, a - r8);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 1, h_flag, c_flag);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // sbc a, r8
         if (middle_three_bits == 3) {
@@ -287,57 +295,56 @@ int execute() {
             uint8_t r8 = get_r8(operand);
             uint8_t carry = get_flag(FLAG_C);
 
-            int h_flag = (r8 & 0x0F) + carry > (a & 0x0F) ? 1 : 0;
-            int c_flag = (uint16_t)r8 + carry > a ? 1 : 0;
+            int h_flag = (r8 & 0x0F) + carry > (a & 0x0F);
+            int c_flag = (uint16_t)r8 + carry > a;
 
             set_r8(A, a - r8 - carry);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 1, h_flag, c_flag);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // and a, r8
         if (middle_three_bits == 4) {
             set_r8(A, get_r8(A) & get_r8(operand));
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, 1, 0);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // xor a, r8
         if (middle_three_bits == 5) {
             set_r8(A, get_r8(A) ^ get_r8(operand));
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, 0, 0);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // or a, r8
         if (middle_three_bits == 6) {
             set_r8(A, get_r8(A) | get_r8(operand));
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, 0, 0);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
         // cp a, r8
         if (middle_three_bits == 7) {
             uint8_t a = get_r8(A);
             uint8_t r8 = get_r8(operand);
 
-            int h_flag = (r8 & 0x0F) > (a & 0x0F) ? 1 : 0;
-            int c_flag = r8 > a ? 1 : 0;
+            int h_flag = (r8 & 0x0F) > (a & 0x0F);
+            int c_flag = r8 > a;
 
             uint8_t comp = a - r8;
-            int z_flag = comp == 0 ? 1 : 0;
-
+            int z_flag = comp == 0;
             set_flags(z_flag, 1, h_flag, c_flag);
 
-            return 1;
+            return operand != VAL_HL ? 1 : 2;
         }
     }
 
@@ -348,12 +355,12 @@ int execute() {
             uint8_t n8 = read_imm8();
             uint8_t a = get_r8(A);
 
-            int h_flag = ((a & 0x0F) + (n8 & 0x0F)) > 0x0F ? 1 : 0;
-            int c_flag = ((uint16_t)a + n8) > 0xFF ? 1 : 0;
+            int h_flag = ((a & 0x0F) + (n8 & 0x0F)) > 0x0F;
+            int c_flag = ((uint16_t)a + n8) > 0xFF;
 
             set_r8(A, a + n8);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, h_flag, c_flag);
 
             return 2;
@@ -364,12 +371,12 @@ int execute() {
             uint8_t n8 = read_imm8();
             uint8_t carry = get_flag(FLAG_C);
 
-            int h_flag = ((a & 0x0F) + (n8 & 0x0F) + carry) > 0x0F ? 1 : 0;
-            int c_flag = ((uint16_t)a + n8 + carry) > 0xFF ? 1 : 0;
+            int h_flag = ((a & 0x0F) + (n8 & 0x0F) + carry) > 0x0F;
+            int c_flag = ((uint16_t)a + n8 + carry) > 0xFF;
 
             set_r8(A, a + n8 + carry);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, h_flag, c_flag);
 
             return 2;
@@ -379,12 +386,12 @@ int execute() {
             uint8_t a = get_r8(A);
             uint8_t n8 = read_imm8();
 
-            int h_flag = (n8 & 0x0F) > (a & 0x0F) ? 1 : 0;
-            int c_flag = n8 > a ? 1 : 0;
+            int h_flag = (n8 & 0x0F) > (a & 0x0F);
+            int c_flag = n8 > a;
 
             set_r8(A, a - n8);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 1, h_flag, c_flag);
 
             return 2;
@@ -395,12 +402,12 @@ int execute() {
             uint8_t n8 = read_imm8();
             uint8_t carry = get_flag(FLAG_C);
 
-            int h_flag = (n8 & 0x0F) + carry > (a & 0x0F) ? 1 : 0;
-            int c_flag = (uint16_t)n8 + carry > a ? 1 : 0;
+            int h_flag = (n8 & 0x0F) + carry > (a & 0x0F);
+            int c_flag = (uint16_t)n8 + carry > a;
 
             set_r8(A, a - n8 - carry);
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 1, h_flag, c_flag);
 
             return 2;
@@ -408,8 +415,8 @@ int execute() {
         // and a, imm8
         if (opcode == 0xE6) {
             set_r8(A, get_r8(A) & read_imm8());
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, 1, 0);
 
             return 2;
@@ -417,8 +424,8 @@ int execute() {
         // xor a, imm8
         if (opcode == 0xEE) {
             set_r8(A, get_r8(A) ^ read_imm8());
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, 0, 0);
 
             return 2;
@@ -426,8 +433,8 @@ int execute() {
         // or a, imm8
         if (opcode == 0xF6) {
             set_r8(A, get_r8(A) | read_imm8());
-            int z_flag = get_r8(A) == 0 ? 1 : 0;
 
+            int z_flag = get_r8(A) == 0;
             set_flags(z_flag, 0, 0, 0);
 
             return 2;
@@ -437,12 +444,11 @@ int execute() {
             uint8_t a = get_r8(A);
             uint8_t n8 = read_imm8();
 
-            int h_flag = (n8 & 0x0F) > (a & 0x0F) ? 1 : 0;
-            int c_flag = n8 > a ? 1 : 0;
+            int h_flag = (n8 & 0x0F) > (a & 0x0F);
+            int c_flag = n8 > a;
 
             uint8_t comp = a - n8;
-            int z_flag = comp == 0 ? 1 : 0;
-
+            int z_flag = comp == 0;
             set_flags(z_flag, 1, h_flag, c_flag);
 
             return 2;
@@ -523,7 +529,7 @@ int execute() {
                 set_r16(SP, get_r16(SP) - 1); // Push high
                 mem_write(get_r16(SP), (uint8_t)(curr_addr >> 8));
                 set_r16(SP, get_r16(SP) - 1); // Push low
-                mem_write(get_r16(SP), (uint8_t)(curr_addr & 0x0F));
+                mem_write(get_r16(SP), (uint8_t)(curr_addr & 0xFF));
 
                 set_pc(jp_addr);
 
@@ -540,7 +546,7 @@ int execute() {
             set_r16(SP, get_r16(SP) - 1); // Push high
             mem_write(get_r16(SP), (uint8_t)(curr_addr >> 8));
             set_r16(SP, get_r16(SP) - 1); // Push low
-            mem_write(get_r16(SP), (uint8_t)(curr_addr & 0x0F));
+            mem_write(get_r16(SP), (uint8_t)(curr_addr & 0xFF));
 
             set_pc(jp_addr);
 
@@ -555,7 +561,7 @@ int execute() {
             set_r16(SP, get_r16(SP) - 1); // Push high
             mem_write(get_r16(SP), (uint8_t)(curr_addr >> 8));
             set_r16(SP, get_r16(SP) - 1); // Push low
-            mem_write(get_r16(SP), (uint8_t)(curr_addr & 0x0F));
+            mem_write(get_r16(SP), (uint8_t)(curr_addr & 0xFF));
 
             set_pc(jp_addr);
 
@@ -620,8 +626,8 @@ int execute() {
             int8_t e8 = read_imm8();
 
             uint8_t u8 = (uint8_t)e8;
-            int h_flag = ((sp & 0x0F) + (u8 & 0x0F)) > 0x0F ? 1 : 0;
-            int c_flag = ((sp & 0xFF) + u8) > 0xFF ? 1 : 0;
+            int h_flag = ((sp & 0x0F) + (u8 & 0x0F)) > 0x0F;
+            int c_flag = ((sp & 0xFF) + u8) > 0xFF;
 
             set_r16(SP, sp + e8);
             set_flags(0, 0, h_flag, c_flag);
@@ -634,8 +640,8 @@ int execute() {
             int8_t e8 = read_imm8();
 
             uint8_t u8 = (uint8_t)e8;
-            int h_flag = ((sp & 0x0F) + (u8 & 0x0F)) > 0x0F ? 1 : 0;
-            int c_flag = ((sp & 0xFF) + u8) > 0xFF ? 1 : 0;
+            int h_flag = ((sp & 0x0F) + (u8 & 0x0F)) > 0x0F;
+            int c_flag = ((sp & 0xFF) + u8) > 0xFF;
 
             set_r16(HL, sp + e8);
             set_flags(0, 0, h_flag, c_flag);
@@ -658,6 +664,127 @@ int execute() {
         if (opcode == 0xFB) {
             // Enable IME
             return 1;
+        }
+    }
+
+    // $CB Prefix Instructions
+    if (opcode == 0xCB) {
+        uint8_t opcode = get_opcode();
+
+        uint8_t operand = opcode & 0x07;
+        uint8_t r8 = get_r8(operand);
+        uint8_t first_five_bits = (opcode >> 3) & 0x1F;
+
+        // rlc r8
+        if (first_five_bits == 0) {
+            int bit7 = (r8 >> 7) & 0x01;
+
+            set_r8(operand, (r8 << 1) | bit7);
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit7);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // rrc r8
+        if (first_five_bits == 1) {
+            int bit0 = r8 & 0x01;
+
+            set_r8(operand, (r8 >> 1) | (bit0 << 7));
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit0);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // rl r8
+        if (first_five_bits == 2) {
+            int bit7 = (r8 >> 7) & 0x01;
+            int c_flag = get_flag(FLAG_C);
+
+            set_r8(operand, (r8 << 1) | c_flag);
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit7);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // rr r8
+        if (first_five_bits == 3) {
+            int bit0 = r8 & 0x01;
+            int c_flag = get_flag(FLAG_C);
+
+            set_r8(operand, (r8 >> 1) | (c_flag << 7));
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit0);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // sla r8
+        if (first_five_bits == 4) {
+            int bit7 = (r8 >> 7) & 0x01;
+
+            set_r8(operand, r8 << 1);
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit7);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // sra r8
+        if (first_five_bits == 5) {
+            int bit0 = r8 & 0x01;
+            int bit7 = (r8 >> 7) & 0x01;
+
+            set_r8(operand, (r8 >> 1) | (bit7 << 7));
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit0);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // swap r8
+        if (first_five_bits == 6) {
+            set_r8(operand, (r8 << 4) | (r8 >> 4));
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, 0);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // srl r8
+        if (first_five_bits == 7) {
+            int bit0 = r8 & 0x01;
+
+            set_r8(operand, r8 >> 1);
+
+            int z_flag = get_r8(operand) == 0;
+            set_flags(z_flag, 0, 0, bit0);
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+
+        uint8_t first_two_bits = (opcode >> 6) & 0x03;
+        uint8_t b3 = (opcode >> 3) & 0x07;
+        // bit b3, r8
+        if (first_two_bits == 1) {
+            int z_flag = (r8 & (0x01 << b3)) == 0;
+            set_flags(z_flag, 0, 1, -1);
+
+            return operand != VAL_HL ? 2 : 3;
+        }
+        // res b3, r8
+        if (first_two_bits == 2) {
+            set_r8(operand, r8 & ~(0x01 << b3));
+
+            return operand != VAL_HL ? 2 : 4;
+        }
+        // set b3, r8
+        if (first_two_bits == 3) {
+            set_r8(operand, r8 | (0x01 << b3));
+
+            return operand != VAL_HL ? 2 : 4;
         }
     }
 

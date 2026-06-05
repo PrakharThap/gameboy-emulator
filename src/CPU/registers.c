@@ -182,21 +182,21 @@ void set_flags(int z, int n, int h, int c) {
     // Subtraction
     if (n == 0) {
         registers.f &= 0xB0;
-    } else if (z == 1) {
+    } else if (n == 1) {
         registers.f |= 0x40;
     }
 
     // Half Carry
     if (h == 0) {
         registers.f &= 0xD0;
-    } else if (z == 1) {
+    } else if (h == 1) {
         registers.f |= 0x20;
     }
 
     // Carry
     if (c == 0) {
         registers.f &= 0xE0;
-    } else if (z == 1) {
+    } else if (c == 1) {
         registers.f |= 0x10;
     }
 }
