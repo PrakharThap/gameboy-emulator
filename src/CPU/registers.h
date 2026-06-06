@@ -5,23 +5,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define B 0
-#define C 1
-#define D 2
-#define E 3
-#define H 4
-#define L 5
-#define VAL_HL 6
-#define A 7
+#define R8_B 0
+#define R8_C 1
+#define R8_D 2
+#define R8_E 3
+#define R8_H 4
+#define R8_L 5
+#define R8_VAL_HL 6
+#define R8_A 7
 
-#define BC 0
-#define DE 1
-#define HL 2
-#define SP 3
-#define AF 3
+#define R16_BC 0
+#define R16_DE 1
+#define R16_HL 2
+#define R16_SP 3
+#define R16STK_AF 3
 
-#define HLI 2
-#define HLD 3
+#define R16MEM_HLI 2
+#define R16MEM_HLD 3
 
 #define COND_NZ 0
 #define COND_Z 1

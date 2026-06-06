@@ -67,7 +67,6 @@ void mbc_write(uint16_t address, uint8_t value) {
             printf(
                 "Error: No MBC received out of bounds address! (Address: 0x%04X; Value: 0x%02X)\n",
                 address, value);
-            exit(1);
         }
         break;
     }

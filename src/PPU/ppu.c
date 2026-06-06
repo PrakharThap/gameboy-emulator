@@ -76,8 +76,10 @@ static uint8_t increment_ly() {
         stat &= 0xFB;
     mem_write(STAT_ADDRESS, stat);
 
+    // Request STAT Interrupt
     if (stat & 0x40 && stat & 0x04) {
-    } // Request interrupt later
+        request_interrupt(INTERRUPT_LCD);
+    }
 
     return ly;
 }
@@ -97,11 +99,13 @@ static void set_mode(uint8_t new_mode) {
     if (new_mode == 2 && (stat & 0x20))
         fire = 1;
 
-    if (fire) { // Request Interrupt later
+    // Request STAT Interrupt
+    if (fire) {
+        request_interrupt(INTERRUPT_LCD);
     }
 }
 
-void tick(uint8_t dots) {
+void ppu_tick(uint8_t dots) {
     if (dots % 4 != 0) {
         printf("OAM Search received incorrect dot count: %d\n", dots);
         return;
@@ -129,12 +133,13 @@ void tick(uint8_t dots) {
             oam_counter = 0;
 
             uint8_t ly = increment_ly();
-            if (ly == 144)
+            if (ly == 144) {
+                request_interrupt(INTERRUPT_VBLANK);
                 set_mode(1); // Enter VBlank after the last visible line
-            else
+            } else
                 set_mode(2); // Start OAM Search for the next line
 
-            tick(diff); // Process remaining dots
+            ppu_tick(diff); // Process remaining dots
         }
         break;
     }
@@ -154,7 +159,7 @@ void tick(uint8_t dots) {
                 win_y = 0;
                 set_mode(2); // Start OAM Search for the next frame
             }
-            tick(diff); // Process remaining dots
+            ppu_tick(diff); // Process remaining dots
         }
         break;
     }
@@ -199,8 +204,8 @@ void tick(uint8_t dots) {
         {
             uint16_t diff = scanline_dot - 80;
             scanline_dot -= diff;
-            set_mode(3); // Enter Pixel Transfer
-            tick(diff);  // Process remaining dots
+            set_mode(3);    // Enter Pixel Transfer
+            ppu_tick(diff); // Process remaining dots
         }
 
         break;
@@ -366,7 +371,7 @@ void tick(uint8_t dots) {
             uint16_t diff = scanline_dot - (80 + 172);
             scanline_dot -= diff;
             set_mode(0);
-            tick(diff);
+            ppu_tick(diff);
         }
         break;
     }

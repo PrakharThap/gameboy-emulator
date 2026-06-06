@@ -1,5 +1,4 @@
 #include "registers.h"
-
 static Registers registers;
 
 static uint8_t (*mem_read)(uint16_t);
@@ -7,28 +6,28 @@ static void (*mem_write)(uint16_t, uint8_t);
 
 uint8_t get_r8(uint8_t indx) {
     switch (indx) {
-    case B:
+    case R8_B:
         return registers.b;
         break;
-    case C:
+    case R8_C:
         return registers.c;
         break;
-    case D:
+    case R8_D:
         return registers.d;
         break;
-    case E:
+    case R8_E:
         return registers.e;
         break;
-    case H:
+    case R8_H:
         return registers.h;
         break;
-    case L:
+    case R8_L:
         return registers.l;
         break;
-    case VAL_HL:
+    case R8_VAL_HL:
         return mem_read(registers.hl);
         break;
-    case A:
+    case R8_A:
         return registers.a;
         break;
     default:
@@ -39,16 +38,16 @@ uint8_t get_r8(uint8_t indx) {
 
 uint16_t get_r16(uint8_t indx) {
     switch (indx) {
-    case BC:
+    case R16_BC:
         return registers.bc;
         break;
-    case DE:
+    case R16_DE:
         return registers.de;
         break;
-    case HL:
+    case R16_HL:
         return registers.hl;
         break;
-    case SP:
+    case R16_SP:
         return registers.sp;
         break;
     default:
@@ -59,16 +58,16 @@ uint16_t get_r16(uint8_t indx) {
 
 uint16_t get_r16stk(uint8_t indx) {
     switch (indx) {
-    case BC:
+    case R16_BC:
         return registers.bc;
         break;
-    case DE:
+    case R16_DE:
         return registers.de;
         break;
-    case HL:
+    case R16_HL:
         return registers.hl;
         break;
-    case AF:
+    case R16STK_AF:
         return registers.af;
         break;
     default:
@@ -79,19 +78,19 @@ uint16_t get_r16stk(uint8_t indx) {
 
 uint16_t get_r16mem(uint8_t indx) {
     switch (indx) {
-    case BC:
+    case R16_BC:
         return registers.bc;
         break;
-    case DE:
+    case R16_DE:
         return registers.de;
         break;
-    case HLI:
+    case R16MEM_HLI:
         // Return HL and increment
-        return registers.hl;
+        return registers.hl++;
         break;
-    case HLD:
+    case R16MEM_HLD:
         // Return HL and decrement
-        return registers.hl;
+        return registers.hl--;
         break;
     default:
         printf("This shouldn't be possible.\n");
@@ -101,28 +100,28 @@ uint16_t get_r16mem(uint8_t indx) {
 
 void set_r8(uint8_t indx, uint8_t value) {
     switch (indx) {
-    case B:
+    case R8_B:
         registers.b = value;
         break;
-    case C:
+    case R8_C:
         registers.c = value;
         break;
-    case D:
+    case R8_D:
         registers.d = value;
         break;
-    case E:
+    case R8_E:
         registers.e = value;
         break;
-    case H:
+    case R8_H:
         registers.h = value;
         break;
-    case L:
+    case R8_L:
         registers.l = value;
         break;
-    case VAL_HL:
+    case R8_VAL_HL:
         mem_write(registers.hl, value);
         break;
-    case A:
+    case R8_A:
         registers.a = value;
         break;
     default:
@@ -133,17 +132,17 @@ void set_r8(uint8_t indx, uint8_t value) {
 
 void set_r16(uint8_t indx, uint16_t value) {
     switch (indx) {
-    case BC:
-        registers.b = value;
+    case R16_BC:
+        registers.bc = value;
         break;
-    case DE:
-        registers.c = value;
+    case R16_DE:
+        registers.de = value;
         break;
-    case HL:
-        registers.d = value;
+    case R16_HL:
+        registers.hl = value;
         break;
-    case SP:
-        registers.e = value;
+    case R16_SP:
+        registers.sp = value;
         break;
     default:
         printf("This shouldn't be possible.\n");

@@ -1,5 +1,4 @@
 #include "window.h"
-#include <SDL2/SDL_video.h>
 
 static SDL_Window *window;     // Pointer to the SDL window
 static SDL_Renderer *renderer; // Pointer to SDL renderer
@@ -36,7 +35,7 @@ void update_framebuffer(struct PixelData pd, uint8_t x, uint8_t y) {
 
 void update_obj_framebuffer(struct PixelData pd, bool priority, uint8_t x, uint8_t y) {
     if (x >= 160 || y >= 144) {
-        printf("Error: Framebuffer out of bounds write!\n");
+        printf("Error: Framebuffer object out of bounds write!\n");
         return;
     }
 
