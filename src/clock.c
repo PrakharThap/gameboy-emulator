@@ -11,37 +11,45 @@ static void (*mem_write)(uint16_t, uint8_t);
 
 void clock_tick(int m_cycles) {
     div_counter += m_cycles;
-    tima_counter += m_cycles;
 
     if (div_counter >= 64) {
-        div_counter %= 64;
+        div_counter -= 64;
         mem_write(DIV_ADDRESS, mem_read(DIV_ADDRESS) + 1); // Increment DIV
     }
 
     uint8_t tac = mem_read(TAC_ADDRESS);
     if (tac & 0x04) {
+        tima_counter += m_cycles;
+
         int clock_select = tac & 0x03;
         int tima_rate;
         switch (clock_select) {
         case 0:
             tima_rate = 256;
+            break;
         case 1:
             tima_rate = 4;
+            break;
         case 2:
             tima_rate = 16;
+            break;
         case 3:
             tima_rate = 64;
+            break;
+        default:
+            printf("Incorrect clock select provided.\n");
+            exit(1);
         }
 
-        if (tima_counter >= tima_rate) {
-            tima_counter %= tima_rate;
-
+        while (tima_counter >= tima_rate) {
             uint8_t tima = mem_read(TIMA_ADDRESS);
             if (tima == 0xFF) {
                 mem_write(TIMA_ADDRESS, mem_read(TMA_ADDRESS));
                 request_interrupt(INTERRUPT_TIMER);
             } else
                 mem_write(TIMA_ADDRESS, tima + 1);
+
+            tima_counter -= tima_rate;
         }
     }
 }

@@ -28,6 +28,12 @@ void mem_write(uint16_t address, uint8_t value) {
         address -= 0x2000;
     }
 
+    // Reset DIV on write
+    if (address == 0xFF04) {
+        memory[address] = 0x00;
+        return;
+    }
+
     memory[address] = value;
 }
 

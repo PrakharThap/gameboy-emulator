@@ -99,9 +99,9 @@ void gb_init(FILE *rom) {
         }
 
         // Handle EI pending instruction
-        if (get_ei_pending()) {
-            set_ime(true);
-            unset_ei_pending();
+        if (get_ei_delay() > 0) {
+            if (decrement_ei_delay() == 0)
+                set_ime(true);
         }
 
         int m_cycles = execute_instruction();

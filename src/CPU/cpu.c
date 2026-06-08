@@ -4,7 +4,7 @@
 static bool halted;
 static bool halt_bug;
 
-static bool ei_pending;
+static int ei_delay;
 
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
@@ -24,25 +24,11 @@ int execute_instruction() {
 
         return 1;
     }
-    //    debug();
+
     uint8_t opcode = get_opcode();
     if (halt_bug) {
         set_pc(get_pc() - 1);
         halt_bug = false;
-    }
-    // if (counter >= 1000)
-    //   exit(0);
-    if (seen) {
-        // debug();
-        counter++;
-    }
-
-    if (get_pc() - 1 == 0x02D3) {
-        if (seen) {
-            printf("ALREADY SAW THIS!: %d\n", counter);
-            // exit(0);
-        }
-        seen = true;
     }
 
     uint8_t first_two_bits = (opcode >> 6) & 0x03;
@@ -257,7 +243,7 @@ int execute_instruction() {
             // Treat as nop and consume next byte
             read_imm8();
 
-            return 0;
+            return 1;
         }
     }
 
@@ -740,7 +726,7 @@ int execute_instruction() {
         // ei
         if (opcode == 0xFB) {
             // Set EI Pending
-            ei_pending = true;
+            ei_delay = 2;
             return 1;
         }
     }
@@ -870,8 +856,8 @@ int execute_instruction() {
     exit(1);
 }
 
-bool get_ei_pending() { return ei_pending; }
-void unset_ei_pending() { ei_pending = false; }
+int get_ei_delay() { return ei_delay; }
+int decrement_ei_delay() { return --ei_delay; }
 
 void cpu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t)) {
     mem_read = mem_read_fp;
@@ -883,5 +869,5 @@ void cpu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, u
     halted = false;
     halt_bug = false;
 
-    ei_pending = false;
+    ei_delay = 0;
 }
