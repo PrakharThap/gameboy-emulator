@@ -1,5 +1,4 @@
 #include "ppu.h"
-#include "window.h"
 
 // Define addresses for PPU needed I/O registers
 const uint16_t LCDC_ADDRESS = 0xFF40,             // LCD Control Register
@@ -18,6 +17,9 @@ struct OAMEntry {
     uint8_t attributes;
     uint8_t tile_row_offset;
 };
+
+static bool lcd_on;
+
 static struct OAMEntry oam_buffer[10]; // Buffer for OAM search results (up to 10 sprites per line)
 static uint8_t oam_counter = 0;        // Index for OAM search results
 static uint8_t oam_index = 0;          // Index for valid OAM search results
@@ -111,11 +113,18 @@ void ppu_tick(uint8_t dots) {
         return;
     }
     uint8_t lcdc = mem_read(LCDC_ADDRESS);
-    unsigned lcdc_enabled = lcdc & 0x80;
-    if (!lcdc_enabled) {
-        mode = 2; // Reset PPU while off
+    lcd_on = lcdc & 0x80;
+    if (!lcd_on) {
+        // Reset PPU while off
+        mode = 2;
+        mem_write(LY_ADDRESS, 0x00);
+        mem_write(STAT_ADDRESS, mem_read(STAT_ADDRESS) & 0xFC);
         scanline_dot = 0;
         win_y = 0;
+
+        oam_counter = 0;
+        oam_index = 0;
+
         return;
     }
 
@@ -379,6 +388,7 @@ void ppu_tick(uint8_t dots) {
 }
 
 uint8_t get_mode() { return mode; }
+bool is_lcd_on() { return lcd_on; }
 
 void ppu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t)) {
     // Set read/write function pointers (direct access to VRAM)
@@ -389,7 +399,7 @@ void ppu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, u
     window_init();
 
     // Initialize PPU boot settings
-    mode = 1;
+    mode = 2;
     oam_index = 0;
     scanline_dot = 0;
     win_y = 0;

@@ -6,20 +6,27 @@
 #include "CPU/registers.h"
 #include "PPU/ppu.h"
 #include "cartridge.h"
+#include "clock.h"
 #include "interrupts.h"
 #include "memory.h"
 
 #include "regions.h"
 
 uint8_t bus_read(uint16_t address) {
-    uint8_t ppu_mode = get_mode();
-    if (ppu_mode == 2) {
-        if (address >= OAM_START && address <= OAM_END)
-            return 0xFF;
-    } else if (ppu_mode == 3) {
-        if ((address >= VRAM_START && address <= VRAM_END) ||
-            (address >= OAM_START && address <= OAM_END))
-            return 0xFF;
+    if (is_lcd_on()) {
+        uint8_t ppu_mode = get_mode();
+        if (ppu_mode == 2) {
+            if (address >= OAM_START && address <= OAM_END) {
+                printf("Invalid bus read to OAM during mode 2 (PC: 0x%04X).\n", get_pc());
+                return 0xFF;
+            }
+        } else if (ppu_mode == 3) {
+            if ((address >= VRAM_START && address <= VRAM_END) ||
+                (address >= OAM_START && address <= OAM_END)) {
+                printf("Invalid bus read to VRAM/OAM during mode 3 (PC: 0x%04X).\n", get_pc());
+                return 0xFF;
+            }
+        }
     }
 
     if (address <= ROM_BANK_N_END ||
@@ -31,14 +38,20 @@ uint8_t bus_read(uint16_t address) {
 }
 
 void bus_write(uint16_t address, uint8_t value) {
-    uint8_t ppu_mode = get_mode();
-    if (ppu_mode == 2) {
-        if (address >= OAM_START && address <= OAM_END)
-            return;
-    } else if (ppu_mode == 3) {
-        if ((address >= VRAM_START && address <= VRAM_END) ||
-            (address >= OAM_START && address <= OAM_END))
-            return;
+    if (is_lcd_on()) {
+        uint8_t ppu_mode = get_mode();
+        if (ppu_mode == 2) {
+            if (address >= OAM_START && address <= OAM_END) {
+                printf("Invalid bus write to OAM during mode 2 (PC: 0x%04X).\n", get_pc());
+                return;
+            }
+        } else if (ppu_mode == 3) {
+            if ((address >= VRAM_START && address <= VRAM_END) ||
+                (address >= OAM_START && address <= OAM_END)) {
+                printf("Invalid bus write to VRAM/OAM during mode 3 (PC: 0x%04X).\n", get_pc());
+                return;
+            }
+        }
     }
 
     if (address <= ROM_BANK_N_END ||
@@ -58,6 +71,9 @@ void gb_init(FILE *rom) {
 
     // Initialize PPU
     ppu_init(mem_read, mem_write);
+
+    // Intiailize Clock
+    clock_init(mem_read, mem_write);
 
     // Initialize CPU
     cpu_init(bus_read, bus_write);
@@ -91,6 +107,7 @@ void gb_init(FILE *rom) {
         int m_cycles = execute_instruction();
         m_cycles += handle_interrupts();
         ppu_tick(m_cycles * 4);
+        clock_tick(m_cycles);
 
         counter++;
     }

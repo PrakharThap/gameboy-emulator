@@ -1,6 +1,9 @@
 #include "cpu.h"
 #include "registers.h"
 
+static bool halted;
+static bool halt_bug;
+
 static bool ei_pending;
 
 static uint8_t (*mem_read)(uint16_t);
@@ -9,22 +12,38 @@ static void (*mem_write)(uint16_t, uint8_t);
 int counter = 0;
 bool seen = false;
 
-int execute_instruction() {
-    uint8_t opcode = get_opcode();
-    // if (counter > 100)
-    //     exit(0);
-    // if (seen) {
-    //     printf("PC: 0x%04X; Opcode: 0x%02X\n", get_pc() - 1, opcode);
-    //     counter++;
-    // }
+void debug() {
+    printf("%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n", get_pc(), get_r16(R16STK_AF),
+           get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL), get_r16(R16_SP));
+}
 
-    // if (get_pc() - 1 == 0x27F7) {
-    //    if (seen) {
-    //        printf("ALREADY SAW THIS!");
-    //       exit(0);
-    //   }
-    //  seen = true;
-    // }
+int execute_instruction() {
+    if (halted) {
+        if (mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS) & 0x1F)
+            halted = false;
+
+        return 1;
+    }
+    //    debug();
+    uint8_t opcode = get_opcode();
+    if (halt_bug) {
+        set_pc(get_pc() - 1);
+        halt_bug = false;
+    }
+    // if (counter >= 1000)
+    //   exit(0);
+    if (seen) {
+        // debug();
+        counter++;
+    }
+
+    if (get_pc() - 1 == 0x02D3) {
+        if (seen) {
+            printf("ALREADY SAW THIS!: %d\n", counter);
+            // exit(0);
+        }
+        seen = true;
+    }
 
     uint8_t first_two_bits = (opcode >> 6) & 0x03;
 
@@ -80,7 +99,7 @@ int execute_instruction() {
 
             set_r16(R16_HL, hl + r16);
             int h_flag = ((hl & 0x0FFF) + (r16 & 0x0FFF)) > 0x0FFF;
-            int c_flag = ((uint16_t)hl + r16) > 0xFFFF;
+            int c_flag = ((uint32_t)hl + r16) > 0xFFFF;
             set_flags(-1, 0, h_flag, c_flag);
 
             return 2;
@@ -246,7 +265,11 @@ int execute_instruction() {
     if (first_two_bits == 1) {
         // halt
         if (opcode == 0x76) {
-            return 0;
+            if (!get_ime() && (mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS) & 0x1F))
+                halt_bug = true;
+            else
+                halted = true;
+            return 1;
         }
 
         // ld r8, r8
@@ -856,6 +879,9 @@ void cpu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, u
 
     // Initialize Registers
     registers_init(mem_read_fp, mem_write_fp);
+
+    halted = false;
+    halt_bug = false;
 
     ei_pending = false;
 }

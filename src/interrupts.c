@@ -1,13 +1,11 @@
 #include "interrupts.h"
 
-const uint16_t IE_ADDRESS = 0xFFFF, // Interupt enable
-    IF_ADDRESS = 0xFF0F;            // Interrupt flag
-
 static bool ime;
 
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
+bool get_ime() { return ime; }
 void set_ime(bool state) { ime = state; }
 
 void request_interrupt(uint8_t interrupt) {
@@ -18,7 +16,7 @@ uint8_t handle_interrupts() {
     if (!ime)
         return 0;
 
-    uint8_t pending = mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS);
+    uint8_t pending = mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS) & 0x1F;
     if (!pending)
         return 0;
 
@@ -33,7 +31,7 @@ uint8_t handle_interrupts() {
             set_r16(R16_SP, get_r16(R16_SP) - 1); // Push low
             mem_write(get_r16(R16_SP), (uint8_t)(curr_addr & 0xFF));
 
-            printf("Set interrupt: %d\n", i);
+            printf("Set interrupt: %d (OLD PC: 0x%04X)\n", i, get_pc());
 
             set_pc(0x0040 + i * 8);
             return 5;

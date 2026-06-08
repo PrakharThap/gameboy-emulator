@@ -68,7 +68,7 @@ void mem_init() {
     mem_write(0xFF41, 0x85); // STAT
     mem_write(0xFF42, 0x00); // SCY
     mem_write(0xFF43, 0x00); // SCX
-    mem_write(0xFF44, 0x90); // LY
+    mem_write(0xFF44, 0x00); // LY
     mem_write(0xFF45, 0x00); // LYC
     mem_write(0xFF46, 0xFF); // DMA
     mem_write(0xFF47, 0xFC); // BGP

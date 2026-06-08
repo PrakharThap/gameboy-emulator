@@ -11,6 +11,10 @@
 #define INTERRUPT_SERIAL 3
 #define INTERRUPT_JOYPAD 4
 
+#define IE_ADDRESS 0xFFFF // Interupt enable
+#define IF_ADDRESS 0xFF0F // Interrupt flag
+
+bool get_ime();
 void set_ime(bool state);
 void request_interrupt(uint8_t interrupt);
 uint8_t handle_interrupts();
