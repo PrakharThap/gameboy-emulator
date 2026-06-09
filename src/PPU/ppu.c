@@ -45,16 +45,16 @@ static void fill_row_colors(struct PixelData pixelData[8], uint16_t data_address
         // Each color is represented by 2 bits in the palette
         uint8_t color_bits = (palette >> (color_id * 2)) & 0x03;
         switch (color_bits) {
-        case 0:
+        case 3:
             pd->color = 0x000000FF; // Black
             break;
-        case 1:
+        case 2:
             pd->color = 0x555555FF; // Dark Gray
             break;
-        case 2:
+        case 1:
             pd->color = 0xAAAAAAFF; // Light Gray
             break;
-        case 3:
+        case 0:
             pd->color = 0xFFFFFFFF; // White
             break;
         default:

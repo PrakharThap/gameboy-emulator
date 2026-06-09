@@ -31,8 +31,6 @@ uint8_t handle_interrupts() {
             set_r16(R16_SP, get_r16(R16_SP) - 1); // Push low
             mem_write(get_r16(R16_SP), (uint8_t)(curr_addr & 0xFF));
 
-            printf("Set interrupt: %d (OLD PC: 0x%04X)\n", i, get_pc());
-
             set_pc(0x0040 + i * 8);
             return 5;
         }

@@ -8,6 +8,8 @@
 #include "../interrupts.h"
 #include "registers.h"
 
+void debug();
+
 int get_ei_delay();
 int decrement_ei_delay();
 

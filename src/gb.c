@@ -8,6 +8,7 @@
 #include "cartridge.h"
 #include "clock.h"
 #include "interrupts.h"
+#include "joypad.h"
 #include "memory.h"
 
 #include "regions.h"
@@ -29,6 +30,10 @@ uint8_t bus_read(uint16_t address) {
         }
     }
 
+    if (address == 0xFF00) {
+        //        printf("JOYPAD READ: 0x%02X\n", joypad_read());
+        return joypad_read();
+    }
     if (address <= ROM_BANK_N_END ||
         (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
         return mbc_read(address);
@@ -52,6 +57,11 @@ void bus_write(uint16_t address, uint8_t value) {
                 return;
             }
         }
+    }
+
+    if (address == 0xFF00) {
+        joypad_write(value);
+        return;
     }
 
     if (address <= ROM_BANK_N_END ||
@@ -78,6 +88,9 @@ void gb_init(FILE *rom) {
     // Initialize CPU
     cpu_init(bus_read, bus_write);
 
+    // Initialize Joypad
+    joypad_init(mem_read, mem_write);
+
     // Initialize interrupt handler
     interrupts_init(bus_read, bus_write);
 
@@ -95,8 +108,15 @@ void gb_init(FILE *rom) {
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     running = false;
                 }
+
+                joypad_event(event);
+            }
+            if (event.type == SDL_KEYUP) {
+                joypad_event(event);
             }
         }
+
+        int m_cycles = execute_instruction();
 
         // Handle EI pending instruction
         if (get_ei_delay() > 0) {
@@ -104,7 +124,6 @@ void gb_init(FILE *rom) {
                 set_ime(true);
         }
 
-        int m_cycles = execute_instruction();
         m_cycles += handle_interrupts();
         ppu_tick(m_cycles * 4);
         clock_tick(m_cycles);

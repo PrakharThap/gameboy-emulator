@@ -1,5 +1,4 @@
 #include "cpu.h"
-#include "registers.h"
 
 static bool halted;
 static bool halt_bug;
@@ -9,12 +8,14 @@ static int ei_delay;
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
-int counter = 0;
 bool seen = false;
 
+// BREAKPOINTS: 2a16, 2a02, vblank, 65a3, 034c, 0343
+
 void debug() {
-    printf("%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X\n", get_pc(), get_r16(R16STK_AF),
-           get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL), get_r16(R16_SP));
+    printf("%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X; LY: %02X\n", get_pc(),
+           get_r16stk(R16STK_AF), get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL),
+           get_r16(R16_SP), mem_read(0xFF44));
 }
 
 int execute_instruction() {

@@ -62,7 +62,9 @@ void mbc_write(uint16_t address, uint8_t value) {
     // No MBC
     case 0x00: {
         if (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END) {
-            ram_bank[address - 0xA000] = value;
+            printf(
+                "Error: No MBC tried to write to External RAM (Address: 0x%04X; Value: 0x%02X).\n",
+                address, value);
         } else {
             printf(
                 "Error: No MBC received out of bounds address! (Address: 0x%04X; Value: 0x%02X)\n",

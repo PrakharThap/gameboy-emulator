@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "CPU/registers.h"
 
 static uint8_t *memory;
 
