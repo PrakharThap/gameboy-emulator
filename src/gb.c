@@ -7,6 +7,7 @@
 #include "PPU/ppu.h"
 #include "cartridge.h"
 #include "clock.h"
+#include "dma.h"
 #include "interrupts.h"
 #include "joypad.h"
 #include "memory.h"
@@ -14,6 +15,7 @@
 #include "regions.h"
 
 uint8_t bus_read(uint16_t address) {
+    // PPU Restrictions on CPU
     if (is_lcd_on()) {
         uint8_t ppu_mode = get_mode();
         if (ppu_mode == 2) {
@@ -30,10 +32,16 @@ uint8_t bus_read(uint16_t address) {
         }
     }
 
+    // DMA Restrictions on CPU
+    if (dma_enabled() && address < HIGH_RAM_START) {
+        printf("Bus invalid memory access during DMA.\n");
+        return 0xFF;
+    }
+
     if (address == 0xFF00) {
-        //        printf("JOYPAD READ: 0x%02X\n", joypad_read());
         return joypad_read();
     }
+
     if (address <= ROM_BANK_N_END ||
         (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
         return mbc_read(address);
@@ -57,6 +65,10 @@ void bus_write(uint16_t address, uint8_t value) {
                 return;
             }
         }
+    }
+
+    if (address == 0xFF46) {
+        enable_dma(value * 0x100);
     }
 
     if (address == 0xFF00) {
@@ -91,8 +103,11 @@ void gb_init(FILE *rom) {
     // Initialize Joypad
     joypad_init(mem_read, mem_write);
 
+    // Initialize DMA
+    dma_init(mem_read, mem_write);
+
     // Initialize interrupt handler
-    interrupts_init(bus_read, bus_write);
+    interrupts_init(mem_read, mem_write);
 
     // Main Loop
 
@@ -126,6 +141,7 @@ void gb_init(FILE *rom) {
 
         m_cycles += handle_interrupts();
         ppu_tick(m_cycles * 4);
+        dma_tick(m_cycles);
         clock_tick(m_cycles);
 
         counter++;
