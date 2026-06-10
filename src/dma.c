@@ -15,8 +15,6 @@ void dma_tick(int m_cycles) {
         uint16_t write_address = OAM_START + (160 - dma_remaining_cycles);
         uint16_t read_address = dma_source + (160 - dma_remaining_cycles);
 
-        printf("WRITE ADDRESS: 0x%04X; READ ADDRESS: 0x%04X\n", write_address, read_address);
-
         mem_write(write_address, mem_read(read_address));
         dma_remaining_cycles--;
     }

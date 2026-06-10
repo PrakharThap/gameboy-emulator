@@ -68,8 +68,6 @@ void joypad_event(SDL_Event event) {
         if (key_state) {
             if (*key_state == true) {
                 request_interrupt(INTERRUPT_JOYPAD);
-                printf("KEYSYM: %d", sym);
-                fflush(stdout);
             }
             *key_state = false;
         }

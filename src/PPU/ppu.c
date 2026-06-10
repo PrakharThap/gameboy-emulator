@@ -308,8 +308,8 @@ void ppu_tick(uint8_t dots) {
                                 update_framebuffer(row_data[i], x + i, ly);
                             }
                         }
+                        win_y++;
                     }
-                    win_y++;
                 }
             }
 

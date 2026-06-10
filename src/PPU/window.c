@@ -39,7 +39,9 @@ void update_obj_framebuffer(struct PixelData pd, bool priority, uint8_t x, uint8
         return;
     }
 
-    if (priority && !framebuffer[x])
+    if (pd.transparent)
+        return;
+    if (priority && !transparency[x])
         return;
 
     framebuffer[160 * y + x] = pd.color;
