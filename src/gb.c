@@ -11,6 +11,7 @@
 #include "interrupts.h"
 #include "joypad.h"
 #include "memory.h"
+#include "serial.h"
 
 #include "regions.h"
 
@@ -73,14 +74,21 @@ void bus_write(uint16_t address, uint8_t value) {
         return;
     }
 
+    // DMA Start
     if (address == 0xFF46) {
         enable_dma(value * 0x100);
         return;
     }
 
+    // Joypad Select
     if (address == 0xFF00) {
         joypad_write(value);
         return;
+    }
+
+    // Serial Start
+    if (address == 0xFF02 && (value & 0x81) == 0x81) {
+        serial_start();
     }
 
     if (address <= ROM_BANK_N_END ||
@@ -113,6 +121,9 @@ void gb_init(FILE *rom, FILE *debugDestination) {
     // Initialize DMA
     dma_init(mem_read, mem_write);
 
+    // Initialize Serial
+    serial_init(mem_read, mem_write);
+
     // Initialize interrupt handler
     interrupts_init(mem_read, mem_write);
 
@@ -137,6 +148,9 @@ void gb_init(FILE *rom, FILE *debugDestination) {
             clock_tick(1);
 
             dma_tick(1);
+
+            if (serial_active())
+                serial_tick(1);
 
             ppu_tick(4);
         }
