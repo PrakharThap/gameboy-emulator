@@ -107,24 +107,28 @@ static void set_mode(uint8_t new_mode) {
     }
 }
 
+static void sort_oam_reverse(struct OAMEntry arr[], int n) {
+    for (int i = 1; i < n; i++) {
+        struct OAMEntry key = arr[i];
+        int j = i - 1;
+
+        while (j >= 0 && arr[j].x_pos < key.x_pos) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+
+        arr[j + 1] = key;
+    }
+}
+
 void ppu_tick(uint8_t dots) {
     if (dots % 4 != 0) {
-        printf("OAM Search received incorrect dot count: %d\n", dots);
+        printf("PPU tick received incorrect dot count: %d\n", dots);
         return;
     }
     uint8_t lcdc = mem_read(LCDC_ADDRESS);
     lcd_on = lcdc & 0x80;
     if (!lcd_on) {
-        // Reset PPU while off
-        mode = 2;
-        mem_write(LY_ADDRESS, 0x00);
-        mem_write(STAT_ADDRESS, mem_read(STAT_ADDRESS) & 0xFC);
-        scanline_dot = 0;
-        win_y = 0;
-
-        oam_counter = 0;
-        oam_index = 0;
-
         return;
     }
 
@@ -211,6 +215,8 @@ void ppu_tick(uint8_t dots) {
 
         if (scanline_dot >= 80) // OAM Search takes 80 dots
         {
+            sort_oam_reverse(oam_buffer, oam_index);
+
             uint16_t diff = scanline_dot - 80;
             scanline_dot -= diff;
             set_mode(3);    // Enter Pixel Transfer
@@ -341,11 +347,14 @@ void ppu_tick(uint8_t dots) {
                         if (x_flip) {
                             // Reverse draw order
                             for (int i = 0; i < 8; i++) {
-                                update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i, ly);
+                                if (7 + obj.x_pos - i < 160)
+                                    update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i,
+                                                           ly);
                             }
                         } else {
                             for (int i = 0; i < 8; i++) {
-                                update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
+                                if (obj.x_pos + i < 160)
+                                    update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
                             }
                         }
                     } else {
@@ -366,11 +375,14 @@ void ppu_tick(uint8_t dots) {
                         if (x_flip) {
                             // Reverse draw order
                             for (int i = 0; i < 8; i++) {
-                                update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i, ly);
+                                if (7 + obj.x_pos - i < 160)
+                                    update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i,
+                                                           ly);
                             }
                         } else {
                             for (int i = 0; i < 8; i++) {
-                                update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
+                                if (obj.x_pos + i < 160)
+                                    update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
                             }
                         }
                     }
@@ -389,6 +401,22 @@ void ppu_tick(uint8_t dots) {
 
 uint8_t get_mode() { return mode; }
 bool is_lcd_on() { return lcd_on; }
+
+void ppu_reset() {
+    // Reset PPU while off
+    mode = 2;
+
+    // Increment LY trick
+    mem_write(LY_ADDRESS, 153);
+    increment_ly();
+    mem_write(STAT_ADDRESS, (mem_read(STAT_ADDRESS) & 0xFC) | 0x02);
+
+    scanline_dot = 0;
+    win_y = 0;
+
+    oam_counter = 0;
+    oam_index = 0;
+}
 
 void ppu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t)) {
     // Set read/write function pointers (direct access to VRAM)

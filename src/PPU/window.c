@@ -25,7 +25,7 @@ void present_frame() {
 
 void update_framebuffer(struct PixelData pd, uint8_t x, uint8_t y) {
     if (x >= 160 || y >= 144) {
-        printf("Error: Framebuffer out of bounds write!\n");
+        printf("Error: Framebuffer out of bounds write! (X: %d; Y: %d)\n", x, y);
         return;
     }
 
@@ -35,7 +35,7 @@ void update_framebuffer(struct PixelData pd, uint8_t x, uint8_t y) {
 
 void update_obj_framebuffer(struct PixelData pd, bool priority, uint8_t x, uint8_t y) {
     if (x >= 160 || y >= 144) {
-        printf("Error: Framebuffer object out of bounds write!\n");
+        printf("Error: Object framebuffer out of bounds write! (X: %d; Y: %d)\n", x, y);
         return;
     }
 

@@ -8,10 +8,11 @@
 #include "../interrupts.h"
 #include "registers.h"
 
-void debug();
+void debug(FILE *fp);
 
 int get_ei_delay();
 int decrement_ei_delay();
 
 int execute_instruction();
-void cpu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t));
+void cpu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t),
+              FILE *debugDestination);

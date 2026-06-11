@@ -1,11 +1,13 @@
 #pragma once
 
-#include "regions.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "CPU/cpu.h"
+#include "regions.h"
 
 union MBCData {
     struct NoMBC_State {

@@ -34,7 +34,7 @@ uint8_t bus_read(uint16_t address) {
 
     // DMA Restrictions on CPU
     if (dma_enabled() && address < HIGH_RAM_START) {
-        printf("Bus invalid memory access during DMA.\n");
+        printf("Bus invalid memory read during DMA.\n");
         return 0xFF;
     }
 
@@ -67,8 +67,15 @@ void bus_write(uint16_t address, uint8_t value) {
         }
     }
 
+    // DMA Restrictions on CPU
+    if (dma_enabled() && address < HIGH_RAM_START) {
+        printf("Bus invalid memory write during DMA.\n");
+        return;
+    }
+
     if (address == 0xFF46) {
         enable_dma(value * 0x100);
+        return;
     }
 
     if (address == 0xFF00) {
@@ -84,7 +91,7 @@ void bus_write(uint16_t address, uint8_t value) {
     }
 }
 
-void gb_init(FILE *rom) {
+void gb_init(FILE *rom, FILE *debugDestination) {
     // Initialize memory
     mem_init();
 
@@ -98,7 +105,7 @@ void gb_init(FILE *rom) {
     clock_init(mem_read, mem_write);
 
     // Initialize CPU
-    cpu_init(bus_read, bus_write);
+    cpu_init(bus_read, bus_write, debugDestination);
 
     // Initialize Joypad
     joypad_init(mem_read, mem_write);
@@ -114,6 +121,26 @@ void gb_init(FILE *rom) {
     bool running = true;
     int counter = 0;
     while (running) {
+        fflush(stdout);
+
+        int m_cycles = execute_instruction();
+        // Handle EI pending instruction
+        if (get_ei_delay() > 0) {
+            if (decrement_ei_delay() == 0)
+                set_ime(true);
+        }
+
+        m_cycles += handle_interrupts();
+
+        // Interrupt triggerables
+        for (int i = 0; i < m_cycles; i++) {
+            clock_tick(1);
+
+            dma_tick(1);
+
+            ppu_tick(4);
+        }
+
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -130,21 +157,6 @@ void gb_init(FILE *rom) {
                 joypad_event(event);
             }
         }
-
-        int m_cycles = execute_instruction();
-
-        // Handle EI pending instruction
-        if (get_ei_delay() > 0) {
-            if (decrement_ei_delay() == 0)
-                set_ime(true);
-        }
-
-        m_cycles += handle_interrupts();
-        ppu_tick(m_cycles * 4);
-        dma_tick(m_cycles);
-        clock_tick(m_cycles);
-
-        counter++;
     }
 
     exit(0);
@@ -153,9 +165,17 @@ void gb_init(FILE *rom) {
 int main(int argc, char *argv[]) {
     FILE *rom;
 
+    FILE *debugDestination = stdout;
     char filePath[100] = "ROMS/";
     if (argc > 1) {
-        strcat(filePath, argv[1]);
+        if (strcmp(argv[1], "-d") == 0) {
+            debugDestination = fopen(argv[2], "w");
+            if (!debugDestination) {
+                printf("Debug file could not be written to.");
+                exit(1);
+            }
+        }
+        strcat(filePath, argv[argc - 1]);
         rom = fopen(filePath, "rb");
     } else {
         char fileName[80];
@@ -166,7 +186,7 @@ int main(int argc, char *argv[]) {
 
         rom = fopen(filePath, "rb");
     }
-    gb_init(rom);
+    gb_init(rom, debugDestination);
 
     return 0;
 }

@@ -11,7 +11,6 @@ static void (*mem_write)(uint16_t, uint8_t);
 
 void clock_tick(int m_cycles) {
     div_counter += m_cycles;
-
     if (div_counter >= 64) {
         div_counter -= 64;
         mem_write(DIV_ADDRESS, mem_read(DIV_ADDRESS) + 1); // Increment DIV
@@ -41,18 +40,21 @@ void clock_tick(int m_cycles) {
             exit(1);
         }
 
+        uint8_t tima = mem_read(TIMA_ADDRESS);
         while (tima_counter >= tima_rate) {
-            uint8_t tima = mem_read(TIMA_ADDRESS);
             if (tima == 0xFF) {
                 mem_write(TIMA_ADDRESS, mem_read(TMA_ADDRESS));
                 request_interrupt(INTERRUPT_TIMER);
+                tima = mem_read(TMA_ADDRESS);
             } else
-                mem_write(TIMA_ADDRESS, tima + 1);
+                mem_write(TIMA_ADDRESS, ++tima);
 
             tima_counter -= tima_rate;
         }
     }
 }
+
+void reset_div_counter() { div_counter = 0; }
 
 void clock_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t)) {
     mem_read = mem_read_fp;

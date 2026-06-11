@@ -10,18 +10,12 @@ void dma_tick(int m_cycles) {
     if (dma_remaining_cycles == 0)
         return;
 
-    int num_iters = (dma_remaining_cycles - m_cycles > 0) ? m_cycles : dma_remaining_cycles;
-    for (int i = 0; i < num_iters; i++) {
-        uint16_t write_address = OAM_START + (160 - dma_remaining_cycles);
-        uint16_t read_address = dma_source + (160 - dma_remaining_cycles);
-
-        mem_write(write_address, mem_read(read_address));
-        dma_remaining_cycles--;
-    }
+    uint8_t offset = 160 - dma_remaining_cycles;
+    mem_write(OAM_START + offset, mem_read(dma_source + offset));
+    dma_remaining_cycles--;
 }
 
 void enable_dma(uint16_t source) {
-    printf("DMA started w/ source at 0x%04X\n", source);
     dma_remaining_cycles = 160;
     dma_source = source;
 }

@@ -8,17 +8,28 @@ static int ei_delay;
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
+// Debug
+FILE *debug_dest;
+int counter = 0;
+int num_prints = 20000;
+uint16_t seenAddr = 0x02C7;
 bool seen = false;
 
-// BREAKPOINTS: 2a16, 2a02, vblank, 65a3, 034c, 0343
-
-void debug() {
-    printf("%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X; LY: %02X\n", get_pc(),
-           get_r16stk(R16STK_AF), get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL),
-           get_r16(R16_SP), mem_read(0xFF44));
+void debug(FILE *fp) {
+    fprintf(
+        fp, "%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X; LY: %02X; IME: %d IE: %02X IF: %02X\n",
+        get_pc(), get_r16stk(R16STK_AF), get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL),
+        get_r16(R16_SP), mem_read(0xFF44), get_ime(), mem_read(IE_ADDRESS), mem_read(IF_ADDRESS));
 }
 
 int execute_instruction() {
+    if (get_pc() == seenAddr)
+        seen = true;
+    if (seen && counter < 20000) {
+        debug(debug_dest);
+        counter++;
+    }
+
     if (halted) {
         if (mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS) & 0x1F)
             halted = false;
@@ -27,11 +38,11 @@ int execute_instruction() {
     }
 
     uint8_t opcode = get_opcode();
+
     if (halt_bug) {
         set_pc(get_pc() - 1);
         halt_bug = false;
     }
-
     uint8_t first_two_bits = (opcode >> 6) & 0x03;
 
     // Block 0
@@ -254,6 +265,8 @@ int execute_instruction() {
         if (opcode == 0x76) {
             if (!get_ime() && (mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS) & 0x1F))
                 halt_bug = true;
+            else if (get_ime() && (mem_read(IE_ADDRESS) & mem_read(IF_ADDRESS) & 0x1F))
+                ; // don't halt, interrupt will be serviced immediately
             else
                 halted = true;
             return 1;
@@ -860,12 +873,15 @@ int execute_instruction() {
 int get_ei_delay() { return ei_delay; }
 int decrement_ei_delay() { return --ei_delay; }
 
-void cpu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t)) {
-    mem_read = mem_read_fp;
-    mem_write = mem_write_fp;
+void cpu_init(uint8_t (*bus_read_fp)(uint16_t), void (*bus_write_fp)(uint16_t, uint8_t),
+              FILE *debugDestination) {
+    mem_read = bus_read_fp;
+    mem_write = bus_write_fp;
+
+    debug_dest = debugDestination;
 
     // Initialize Registers
-    registers_init(mem_read_fp, mem_write_fp);
+    registers_init(bus_read_fp, bus_write_fp);
 
     halted = false;
     halt_bug = false;
