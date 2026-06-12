@@ -406,13 +406,14 @@ uint8_t get_mode() { return mode; }
 bool is_lcd_on() { return lcd_on; }
 
 void ppu_reset() {
-    // Reset PPU while off
-    mode = 2;
-
+    mem_write(LY_ADDRESS, 0);
+    mem_write(STAT_ADDRESS, (mem_read(STAT_ADDRESS) & 0xFC));
+}
+void ppu_on() {
     // Increment LY trick
     mem_write(LY_ADDRESS, 153);
     increment_ly();
-    mem_write(STAT_ADDRESS, (mem_read(STAT_ADDRESS) & 0xFC) | 0x02);
+    set_mode(2);
 
     scanline_dot = 0;
     win_y = 0;

@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "PPU/ppu.h"
+#include "cartridge.h"
 #include "clock.h"
 #include "regions.h"
 

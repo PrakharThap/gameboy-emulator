@@ -9,19 +9,21 @@ static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
 // Debug
-bool debug_on = true;
+bool debug_on = false;
 
 FILE *debug_dest;
 int counter = 0;
 int num_prints = 20000;
-uint16_t seenAddr = 0x02C7;
+uint16_t seenAddr = 0x024A;
 bool seen = false;
 
 void debug(FILE *fp) {
-    fprintf(
-        fp, "%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X; LY: %02X; IME: %d IE: %02X IF: %02X\n",
-        get_pc(), get_r16stk(R16STK_AF), get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL),
-        get_r16(R16_SP), mem_read(0xFF44), get_ime(), mem_read(IE_ADDRESS), mem_read(IF_ADDRESS));
+    fprintf(fp,
+            "%04X AF:%04X BC:%04X DE:%04X HL:%04X SP:%04X; LY: %02X; IME: %d IE: %02X IF: %02X, "
+            "STAT: %02X, LCDC: %02X\n",
+            get_pc(), get_r16stk(R16STK_AF), get_r16(R16_BC), get_r16(R16_DE), get_r16(R16_HL),
+            get_r16(R16_SP), mem_read(0xFF44), get_ime(), mem_read(IE_ADDRESS),
+            mem_read(IF_ADDRESS), mem_read(0xFF41), mem_read(0xFF40));
 }
 
 int execute_instruction() {

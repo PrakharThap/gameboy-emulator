@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -94,6 +93,19 @@ void bus_write(uint16_t address, uint8_t value) {
     // Serial Start
     if (address == 0xFF02 && (value & 0x81) == 0x81) {
         serial_start();
+    }
+
+    // STAT Writes
+    if (address == 0xFF41) {
+        value = (value & 0xF8) | (mem_read(0xFF41) & 0x07);
+    }
+    // LCDC Reset
+    if (address == 0xFF40) {
+        if (!(value & 0x80) && is_lcd_on()) {
+            ppu_reset();
+        } else if (value & 0x80 && !is_lcd_on()) {
+            ppu_on();
+        }
     }
 
     if (address <= ROM_BANK_N_END ||

@@ -6,8 +6,7 @@ static uint8_t *memory;
 uint8_t mem_read(uint16_t address) {
     if (address <= ROM_BANK_N_END ||
         (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
-        printf("Error: Memory read out of bounds access. (Address: 0x%04X)\n", address);
-        exit(1);
+        return mbc_read(address);
     }
     // Echo RAM redirection
     if (address >= ECHO_RAM_START && address <= ECHO_RAM_END) {
@@ -26,9 +25,7 @@ uint8_t mem_read(uint16_t address) {
 void mem_write(uint16_t address, uint8_t value) {
     if (address <= ROM_BANK_N_END ||
         (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END)) {
-        printf("Error: Memory write out of bounds access. (Address: 0x%04X; Value: 0x%02X)\n",
-               address, value);
-        exit(1);
+        mbc_write(address, value);
     }
     // Echo RAM redirection
     if (address >= ECHO_RAM_START && address <= ECHO_RAM_END) {
@@ -38,13 +35,7 @@ void mem_write(uint16_t address, uint8_t value) {
     // Prohibited Region
     if (address >= 0xFEA0 && address <= 0xFEFF) {
         printf("Prohibited region write attempted.\n");
-        debug(stdout);
         return;
-    }
-
-    // LCDC Reset
-    if (address == 0xFF40 && !(value & 0x80) && is_lcd_on()) {
-        ppu_reset();
     }
 
     // Reset DIV on write
@@ -55,6 +46,9 @@ void mem_write(uint16_t address, uint8_t value) {
     // IE Writes
     if (address == 0xFF0F)
         value |= 0xE0;
+    // STAT Writes
+    if (address == 0xFF41)
+        value |= 0x80;
 
     memory[address] = value;
 }
