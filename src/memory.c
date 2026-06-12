@@ -1,5 +1,5 @@
 #include "memory.h"
-#include "interrupts.h"
+#include "CPU/cpu.h"
 
 static uint8_t *memory;
 
@@ -38,6 +38,7 @@ void mem_write(uint16_t address, uint8_t value) {
     // Prohibited Region
     if (address >= 0xFEA0 && address <= 0xFEFF) {
         printf("Prohibited region write attempted.\n");
+        debug(stdout);
         return;
     }
 

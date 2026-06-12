@@ -9,6 +9,8 @@ static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
 // Debug
+bool debug_on = true;
+
 FILE *debug_dest;
 int counter = 0;
 int num_prints = 20000;
@@ -23,11 +25,13 @@ void debug(FILE *fp) {
 }
 
 int execute_instruction() {
-    if (get_pc() == seenAddr)
-        seen = true;
-    if (seen && counter < 20000) {
-        debug(debug_dest);
-        counter++;
+    if (debug_on) {
+        if (get_pc() == seenAddr)
+            seen = true;
+        if (seen && counter < 20000) {
+            debug(debug_dest);
+            counter++;
+        }
     }
 
     if (halted) {

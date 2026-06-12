@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -14,6 +15,10 @@
 #include "serial.h"
 
 #include "regions.h"
+
+char romPath[100] = "ROMS/";
+char savePath[100] = "ROMS/Saves/";
+char loadPath[100] = "ROMS/Saves/";
 
 uint8_t bus_read(uint16_t address) {
     // PPU Restrictions on CPU
@@ -99,12 +104,12 @@ void bus_write(uint16_t address, uint8_t value) {
     }
 }
 
-void gb_init(FILE *rom, FILE *debugDestination) {
+void gb_init(FILE *rom, FILE *save, FILE *load, FILE *debugDestination) {
     // Initialize memory
     mem_init();
 
     // Load game ROM
-    cartridge_load(rom);
+    cartridge_load(rom, load);
 
     // Initialize PPU
     ppu_init(mem_read, mem_write);
@@ -172,35 +177,99 @@ void gb_init(FILE *rom, FILE *debugDestination) {
             }
         }
     }
-
+    if (save_ext_ram(save)) {
+        printf("Game saved.\n");
+        fclose(save);
+    } else {
+        printf("Game not saved.");
+    }
     exit(0);
 }
 
 int main(int argc, char *argv[]) {
-    FILE *rom;
+    FILE *rom = NULL;
+    FILE *save = NULL;
+    FILE *load = NULL;
 
     FILE *debugDestination = stdout;
-    char filePath[100] = "ROMS/";
     if (argc > 1) {
-        if (strcmp(argv[1], "-d") == 0) {
-            debugDestination = fopen(argv[2], "w");
-            if (!debugDestination) {
-                printf("Debug file could not be written to.");
-                exit(1);
+        int argn = 0;
+        if (argc >= 3 + argn) {
+            if (strcmp(argv[argn + 1], "-d") == 0) {
+                debugDestination = fopen(argv[argn + 2], "w");
+                if (!debugDestination) {
+                    printf("Debug file could not be written to.");
+                    return 1;
+                }
+
+                argn += 2;
             }
         }
-        strcat(filePath, argv[argc - 1]);
-        rom = fopen(filePath, "rb");
+        if (argc >= 3 + argn) {
+            if (strcmp(argv[argn + 1], "-s") == 0) {
+                strcat(savePath, argv[argn + 2]);
+                save = fopen(savePath, "r+");
+                if (save == NULL) {
+                    printf("ERROR: Save file could not be opened. New file will be created.\n");
+                    save = fopen(savePath, "w");
+                    if (save == NULL) {
+                        perror("Save file could not be created at path.");
+                    }
+                }
+                argn += 2;
+            }
+        }
+        if (argc >= 3 + argn) {
+            if (strcmp(argv[argn + 1], "-l") == 0) {
+                strcat(loadPath, argv[argn + 2]);
+                load = fopen(loadPath, "rb");
+                if (load == NULL) {
+                    perror("ERROR: Load file could not be opened. No RAM will be loaded.\n");
+                }
+                argn += 2;
+            }
+        }
+
+        strcat(romPath, argv[argc - 1]);
+        rom = fopen(romPath, "rb");
     } else {
-        char fileName[80];
+        char romName[80];
+        char saveName[80];
+        char loadName[80];
 
         printf("Enter file name of desired ROM: ");
-        scanf("%s", fileName);
-        strcat(filePath, fileName);
+        scanf("%s", romName);
+        strcat(romPath, romName);
 
-        rom = fopen(filePath, "rb");
+        printf("Enter file name of desired save file: ");
+        scanf("%s", saveName);
+        strcat(savePath, saveName);
+
+        printf("Enter file name of desired load file: ");
+        scanf("%s", loadName);
+        strcat(loadPath, loadName);
+
+        rom = fopen(romPath, "rb");
+        if (rom == NULL) {
+            perror("ERROR: Game ROM could not be opened.\n");
+            return 1;
+        }
+
+        save = fopen(savePath, "r+");
+        if (save == NULL) {
+            printf("ERROR: Save file could not be opened. New file will be created.\n");
+            save = fopen(savePath, "w");
+            if (save == NULL) {
+                perror("Save file could not be created at path.");
+            }
+        }
+
+        load = fopen(loadPath, "rb");
+        if (load == NULL) {
+            perror("ERROR: Load file could not be opened. No RAM will be loaded.\n");
+        }
     }
-    gb_init(rom, debugDestination);
+    gb_init(rom, save, load, debugDestination);
 
     return 0;
 }

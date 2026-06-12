@@ -26,5 +26,7 @@ struct MBC {
 uint8_t mbc_read(uint16_t address);
 void mbc_write(uint16_t address, uint8_t value);
 
-void cartridge_load(FILE *romfp);
+int save_ext_ram(FILE *savefp);
+
+void cartridge_load(FILE *romfp, FILE *loadfp);
 struct MBC get_mbc();

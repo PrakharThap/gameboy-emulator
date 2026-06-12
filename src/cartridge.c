@@ -130,13 +130,17 @@ void mbc_write(uint16_t address, uint8_t value) {
     }
 }
 
-void cartridge_load(FILE *romfp) {
-    // Initialize and ROM
-    if (romfp == NULL) {
-        printf("ERROR: Game ROM could not be opened.\n");
-        exit(1);
+int save_ext_ram(FILE *savefp) {
+    if (savefp) {
+        fwrite(cart_ram, 1, num_ram_banks * 0x2000, savefp);
+        return 1;
+    } else {
+        return 0;
     }
+}
 
+void cartridge_load(FILE *romfp, FILE *loadfp) {
+    // Initialize cartridge ROM and RAM
     fseek(romfp, 0, SEEK_END);
     long romSize = ftell(romfp);
     num_banks = romSize / 0x4000;
@@ -191,7 +195,21 @@ void cartridge_load(FILE *romfp) {
 
     if (num_ram_banks > 0) {
         cart_ram = malloc(num_ram_banks * 0x2000);
-        memset(cart_ram, 0xFF, num_ram_banks * 0x2000);
+        if (loadfp) {
+            fseek(loadfp, 0, SEEK_END);
+            long loadSize = ftell(loadfp);
+            rewind(loadfp);
+
+            if (loadSize / 0x2000 == num_ram_banks) {
+                fread(cart_ram, 1, loadSize, loadfp);
+                fclose(loadfp);
+            } else {
+                printf("Load file does not have the correct external RAM size.");
+                exit(1);
+            }
+        } else {
+            memset(cart_ram, 0xFF, num_ram_banks * 0x2000);
+        }
 
         ram_bank = cart_ram;
     }

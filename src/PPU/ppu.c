@@ -254,7 +254,10 @@ void ppu_tick(uint8_t dots) {
                     uint8_t x = (tile == 0) ? 0 : (tile * 8) - (scx % 8);
 
                     // Calculate tile ID relative to SCX
-                    uint8_t tile_id = mem_read(bg_map + ((bg_y / 8) * 32) + tile + (scx / 8));
+                    uint8_t map_x = ((scx / 8) + tile) & 31;
+                    uint8_t map_y = (bg_y / 8) & 31;
+
+                    uint8_t tile_id = mem_read(bg_map + map_y * 32 + map_x);
 
                     uint16_t tile_addr;
                     if (bg_and_window_tile_data_select) {
