@@ -24,7 +24,6 @@ uint8_t mbc_read(uint16_t address) {
         } else if (address >= EXTERNAL_RAM_START && address <= EXTERNAL_RAM_END) {
             // No MBC has no external RAM
             printf("Error: External RAM read requested on No MBC.\n");
-            debug(stdout);
             return 0xFF;
         }
 
@@ -66,7 +65,6 @@ void mbc_write(uint16_t address, uint8_t value) {
             printf(
                 "Error: No MBC tried to write to External RAM (Address: 0x%04X; Value: 0x%02X).\n",
                 address, value);
-            debug(stdout);
         } else {
             printf(
                 "Error: No MBC received out of bounds address! (Address: 0x%04X; Value: 0x%02X)\n",

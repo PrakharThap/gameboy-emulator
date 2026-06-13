@@ -24,15 +24,13 @@ uint8_t joypad_read() {
     int ssba = (joyp_value >> 5) & 0x01;
     int dir = (joyp_value >> 4) & 0x01;
 
-    if (!ssba && !jp_all) {
-        return joyp_value & 0xF0;
-    }
-
     if (!ssba && !dir) {
         printf("Both ssba and dir active!\n");
         return (joyp_value & 0xF0) | ((jp_start & jp_down) << 3) | ((jp_select & jp_up) << 2) |
                ((jp_b & jp_left) << 1) | (jp_a & jp_right);
     } else if (!ssba) {
+        if (!jp_all)
+            return joyp_value & 0xF0;
         return (joyp_value & 0xF0) | (jp_start << 3) | (jp_select << 2) | (jp_b << 1) | (jp_a);
     } else if (!dir) {
         return (joyp_value & 0xF0) | (jp_down << 3) | (jp_up << 2) | (jp_left << 1) | (jp_right);

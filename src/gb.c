@@ -153,54 +153,68 @@ void gb_init(FILE *rom, FILE *save, FILE *load, FILE *debugDestination) {
 
     // Main Loop
 
+    double target_ms = 1000.0 / 59.7275;
     bool running = true;
-    int counter = 0;
     while (running) {
-        fflush(stdout);
+        int cycles = 0;
+        uint64_t frame_start = SDL_GetTicks64();
 
-        int m_cycles = execute_instruction();
-        // Handle EI pending instruction
-        if (get_ei_delay() > 0) {
-            if (decrement_ei_delay() == 0)
-                set_ime(true);
-        }
-
-        m_cycles += handle_interrupts();
-
-        // Interrupt triggerables
-        for (int i = 0; i < m_cycles; i++) {
-            clock_tick(1);
-
-            dma_tick(1);
-
-            if (serial_active())
-                serial_tick(1);
-
-            ppu_tick(4);
-        }
-
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
+        while (cycles < 17556) {
+            int m_cycles = execute_instruction();
+            // Handle EI pending instruction
+            if (get_ei_delay() > 0) {
+                if (decrement_ei_delay() == 0)
+                    set_ime(true);
             }
-            if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.sym == SDLK_ESCAPE) {
+
+            m_cycles += handle_interrupts();
+
+            // Interrupt triggerables
+            for (int i = 0; i < m_cycles; i++) {
+                clock_tick(1);
+
+                dma_tick(1);
+
+                if (serial_active())
+                    serial_tick(1);
+
+                ppu_tick(4);
+            }
+
+            cycles += m_cycles;
+
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
                     running = false;
                 }
+                if (event.type == SDL_KEYDOWN) {
+                    if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        running = false;
+                    }
 
-                joypad_event(event);
+                    joypad_event(event);
+                }
+                if (event.type == SDL_KEYUP) {
+                    joypad_event(event);
+                }
             }
-            if (event.type == SDL_KEYUP) {
-                joypad_event(event);
-            }
+        }
+
+        present_frame();
+
+        uint64_t frame_end = SDL_GetTicks64();
+
+        double elapsed_ms = (frame_end - frame_start);
+        if (elapsed_ms < target_ms) {
+            SDL_Delay((uint32_t)(target_ms - elapsed_ms));
         }
     }
     if (save_ext_ram(save)) {
         printf("Game saved.\n");
         fclose(save);
     } else {
-        printf("Game not saved.");
+        printf("Game not saved.\n");
     }
     exit(0);
 }

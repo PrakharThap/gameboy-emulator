@@ -12,10 +12,10 @@ const uint16_t LCDC_ADDRESS = 0xFF40,             // LCD Control Register
     WY_ADDRESS = 0xFF4A, WX_ADDRESS = 0xFF4B;     // Window Y and X
 
 struct OAMEntry {
-    int16_t x_pos;
+    int x_pos;
     uint8_t tile_index;
     uint8_t attributes;
-    uint8_t tile_row_offset;
+    int tile_row_offset;
 };
 
 static bool lcd_on;
@@ -166,9 +166,6 @@ void ppu_tick(uint8_t dots) {
 
             uint8_t ly = increment_ly();
             if (ly == 0) {
-                // Display current framebuffer
-                present_frame();
-
                 win_y = 0;
                 set_mode(2); // Start OAM Search for the next frame
             }
