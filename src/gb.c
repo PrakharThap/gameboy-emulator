@@ -90,9 +90,16 @@ void bus_write(uint16_t address, uint8_t value) {
         return;
     }
 
+    // Reset DIV on write
+    if (address == 0xFF04) {
+        reset_div_counter();
+        value = 0x00;
+    }
+
     // Serial Start
     if (address == 0xFF02 && (value & 0x81) == 0x81) {
         serial_start();
+        return;
     }
 
     // STAT Writes

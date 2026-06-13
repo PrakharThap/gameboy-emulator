@@ -38,11 +38,6 @@ void mem_write(uint16_t address, uint8_t value) {
         return;
     }
 
-    // Reset DIV on write
-    if (address == 0xFF04) {
-        reset_div_counter();
-        value = 0x00;
-    }
     // IE Writes
     if (address == 0xFF0F)
         value |= 0xE0;

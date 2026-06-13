@@ -13,6 +13,8 @@ bool jp_b;
 bool jp_select;
 bool jp_start;
 
+bool jp_all;
+
 static uint8_t (*mem_read)(uint16_t);
 static void (*mem_write)(uint16_t, uint8_t);
 
@@ -21,6 +23,10 @@ uint8_t joypad_read() {
 
     int ssba = (joyp_value >> 5) & 0x01;
     int dir = (joyp_value >> 4) & 0x01;
+
+    if (!ssba && !jp_all) {
+        return joyp_value & 0xF0;
+    }
 
     if (!ssba && !dir) {
         printf("Both ssba and dir active!\n");
@@ -55,6 +61,8 @@ static bool *get_var_from_key(SDL_Keycode sym) {
         return &jp_up;
     else if (sym == SDLK_DOWN)
         return &jp_down;
+    else if (sym == SDLK_SPACE)
+        return &jp_all;
 
     return NULL;
 }
@@ -89,6 +97,8 @@ void joypad_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t
     jp_b = true;
     jp_select = true;
     jp_start = true;
+
+    jp_all = true;
 
     // Initialize read/write pointers
     mem_read = mem_read_fp;

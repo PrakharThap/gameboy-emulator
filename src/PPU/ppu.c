@@ -12,7 +12,7 @@ const uint16_t LCDC_ADDRESS = 0xFF40,             // LCD Control Register
     WY_ADDRESS = 0xFF4A, WX_ADDRESS = 0xFF4B;     // Window Y and X
 
 struct OAMEntry {
-    uint8_t x_pos;
+    int16_t x_pos;
     uint8_t tile_index;
     uint8_t attributes;
     uint8_t tile_row_offset;
@@ -350,13 +350,13 @@ void ppu_tick(uint8_t dots) {
                         if (x_flip) {
                             // Reverse draw order
                             for (int i = 0; i < 8; i++) {
-                                if (7 + obj.x_pos - i < 160)
+                                if (7 + obj.x_pos - i < 160 && 7 + obj.x_pos - i >= 0)
                                     update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i,
                                                            ly);
                             }
                         } else {
                             for (int i = 0; i < 8; i++) {
-                                if (obj.x_pos + i < 160)
+                                if (obj.x_pos + i < 160 && obj.x_pos + i >= 0)
                                     update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
                             }
                         }
@@ -378,13 +378,13 @@ void ppu_tick(uint8_t dots) {
                         if (x_flip) {
                             // Reverse draw order
                             for (int i = 0; i < 8; i++) {
-                                if (7 + obj.x_pos - i < 160)
+                                if (7 + obj.x_pos - i < 160 && 7 + obj.x_pos - i >= 0)
                                     update_obj_framebuffer(rowData[i], priority, 7 + obj.x_pos - i,
                                                            ly);
                             }
                         } else {
                             for (int i = 0; i < 8; i++) {
-                                if (obj.x_pos + i < 160)
+                                if (obj.x_pos + i < 160 && obj.x_pos + i >= 0)
                                     update_obj_framebuffer(rowData[i], priority, obj.x_pos + i, ly);
                             }
                         }
