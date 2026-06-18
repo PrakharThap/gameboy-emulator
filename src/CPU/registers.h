@@ -5,33 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define R8_B 0
-#define R8_C 1
-#define R8_D 2
-#define R8_E 3
-#define R8_H 4
-#define R8_L 5
-#define R8_VAL_HL 6
-#define R8_A 7
+// Register definitions
+enum { R8_B = 0, R8_C = 1, R8_D = 2, R8_E = 3, R8_H = 4, R8_L = 5, R8_VAL_HL = 6, R8_A = 7 };
 
-#define R16_BC 0
-#define R16_DE 1
-#define R16_HL 2
-#define R16_SP 3
-#define R16STK_AF 3
+enum { R16_BC = 0, R16_DE = 1, R16_HL = 2, R16_SP = 3, R16STK_AF = 3 };
 
-#define R16MEM_HLI 2
-#define R16MEM_HLD 3
+enum { R16MEM_HLI = 2, R16MEM_HLD = 3 };
 
-#define COND_NZ 0
-#define COND_Z 1
-#define COND_NC 2
-#define COND_C 3
+enum { COND_NZ = 0, COND_Z = 1, COND_NC = 2, COND_C = 3 };
 
-#define FLAG_Z 7
-#define FLAG_N 6
-#define FLAG_H 5
-#define FLAG_C 4
+enum { FLAG_Z = 7, FLAG_N = 6, FLAG_H = 5, FLAG_C = 4 };
 
 // Store all registers as a struct
 typedef struct {

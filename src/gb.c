@@ -21,7 +21,7 @@ char loadPath[100] = "ROMS/Saves/";
 
 uint8_t bus_read(uint16_t address) {
     // PPU Restrictions on CPU
-    if (is_lcd_on()) {
+    if (get_lcd()) {
         uint8_t ppu_mode = get_mode();
         if (ppu_mode == 2) {
             if (address >= OAM_START && address <= OAM_END) {
@@ -43,6 +43,7 @@ uint8_t bus_read(uint16_t address) {
         return 0xFF;
     }
 
+    // Joypad Reads
     if (address == 0xFF00) {
         return joypad_read();
     }
@@ -56,7 +57,7 @@ uint8_t bus_read(uint16_t address) {
 }
 
 void bus_write(uint16_t address, uint8_t value) {
-    if (is_lcd_on()) {
+    if (get_lcd()) {
         uint8_t ppu_mode = get_mode();
         if (ppu_mode == 2) {
             if (address >= OAM_START && address <= OAM_END) {
@@ -102,17 +103,13 @@ void bus_write(uint16_t address, uint8_t value) {
         return;
     }
 
-    // STAT Writes
-    if (address == 0xFF41) {
-        value = (value & 0xF8) | (mem_read(0xFF41) & 0x07);
-    }
-    // LCDC Reset
-    if (address == 0xFF40) {
-        if (!(value & 0x80) && is_lcd_on()) {
-            ppu_reset();
-        } else if (value & 0x80 && !is_lcd_on()) {
-            ppu_on();
-        }
+    // Handle PPU writes elsewhere
+    if (address == LCDC_ADDRESS || address == STAT_ADDRESS || address == SCY_ADDRESS ||
+        address == SCX_ADDRESS || address == LY_ADDRESS || address == LYC_ADDRESS ||
+        address == BGP_ADDRESS || address == OBP0_ADDRESS || address == OBP1_ADDRESS ||
+        address == WY_ADDRESS || address == WX_ADDRESS) {
+        ppu_write(address, value);
+        return;
     }
 
     if (address <= ROM_BANK_N_END ||

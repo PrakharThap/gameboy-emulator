@@ -1,15 +1,7 @@
 #include "ppu.h"
 
 // Define addresses for PPU needed I/O registers
-const uint16_t LCDC_ADDRESS = 0xFF40,             // LCD Control Register
-    STAT_ADDRESS = 0xFF41,                        // LCD Status Register
-    SCY_ADDRESS = 0xFF42, SCX_ADDRESS = 0xFF43,   // Scroll Y and X
-    LY_ADDRESS = 0xFF44,                          // LCD Y Coordinate
-    LYC_ADDRESS = 0xFF45,                         // LY Compare
-    DMA_ADDRESS = 0xFF46,                         // DMA Transfer and Start Address
-    BGP_ADDRESS = 0xFF47,                         // Background Palette Register
-    OBP0_ADDRESS = 0xFF48, OBP1_ADDRESS = 0xFF49, // Object Palette 0 Register
-    WY_ADDRESS = 0xFF4A, WX_ADDRESS = 0xFF4B;     // Window Y and X
+uint8_t lcdc, stat, scy, scx, ly, lyc, bgp, obp0, obp1, wy, wx;
 
 struct OAMEntry {
     int x_pos;
@@ -65,10 +57,6 @@ static void fill_row_colors(struct PixelData pixelData[8], uint16_t data_address
 
 static uint8_t increment_ly() {
     // Increment LY and check for LYC match
-    uint8_t stat = mem_read(STAT_ADDRESS);
-    uint8_t ly = mem_read(LY_ADDRESS);
-    uint8_t lyc = mem_read(LYC_ADDRESS);
-
     ly = (ly + 1) % 154; // LY goes from 0 to 153
     mem_write(LY_ADDRESS, ly);
 
@@ -88,7 +76,6 @@ static uint8_t increment_ly() {
 
 static void set_mode(uint8_t new_mode) {
     mode = new_mode;
-    uint8_t stat = mem_read(STAT_ADDRESS);
 
     stat = (stat & 0xFC) | mode;
     mem_write(STAT_ADDRESS, stat);
@@ -122,12 +109,6 @@ static void sort_oam_reverse(struct OAMEntry arr[], int n) {
 }
 
 void ppu_tick(uint8_t dots) {
-    if (dots % 4 != 0) {
-        printf("PPU tick received incorrect dot count: %d\n", dots);
-        return;
-    }
-    uint8_t lcdc = mem_read(LCDC_ADDRESS);
-    lcd_on = lcdc & 0x80;
     if (!lcd_on) {
         return;
     }
@@ -183,8 +164,6 @@ void ppu_tick(uint8_t dots) {
         uint8_t obj_size = lcdc & 0x04;
         uint8_t entries_to_read = dots / 2; // Each entry takes 2 dots to read
 
-        uint8_t ly = mem_read(LY_ADDRESS);
-
         for (int i = 0; i < entries_to_read && oam_index < 10; i++) {
 
             // Perform OAM search logic here
@@ -229,15 +208,10 @@ void ppu_tick(uint8_t dots) {
             uint8_t window_tile_map_select = lcdc & 0x40, window_enabled = lcdc & 0x20,
                     bg_and_window_tile_data_select = lcdc & 0x10, bg_tile_map_select = lcdc & 0x08,
                     obj_enabled = lcdc & 0x02, bg_and_window_enabled = lcdc & 0x01;
-            uint8_t ly = mem_read(LY_ADDRESS);
 
             if (bg_and_window_enabled) {
-                uint8_t bgp = mem_read(BGP_ADDRESS);
-
                 // Background Rendering
                 uint16_t bg_map = bg_tile_map_select ? 0x9C00 : 0x9800;
-                uint8_t scy = mem_read(SCY_ADDRESS);
-                uint8_t scx = mem_read(SCX_ADDRESS);
 
                 uint8_t bg_y = scy + ly;
 
@@ -284,8 +258,6 @@ void ppu_tick(uint8_t dots) {
                 // Window Rendering
                 if (window_enabled && win_y < 144) {
                     uint16_t win_map = window_tile_map_select ? 0x9C00 : 0x9800;
-                    uint8_t wy = mem_read(WY_ADDRESS);
-                    uint8_t wx = mem_read(WX_ADDRESS);
 
                     if (ly >= wy && wx <= 166) {
                         if (wx < 7)
@@ -400,29 +372,86 @@ void ppu_tick(uint8_t dots) {
 }
 
 uint8_t get_mode() { return mode; }
-bool is_lcd_on() { return lcd_on; }
 
-void ppu_reset() {
-    mem_write(LY_ADDRESS, 0);
-    mem_write(STAT_ADDRESS, (mem_read(STAT_ADDRESS) & 0xFC));
+bool get_lcd() { return lcd_on; }
+void set_lcd(bool state) {
+    if (state) {
+        // Increment LY trick
+        mem_write(LY_ADDRESS, 153);
+        increment_ly();
+        set_mode(2);
+
+        scanline_dot = 0;
+        win_y = 0;
+
+        oam_counter = 0;
+        oam_index = 0;
+
+        lcd_on = true;
+    } else {
+        mem_write(LY_ADDRESS, 0);
+        ly = 0;
+        mem_write(STAT_ADDRESS, (mem_read(STAT_ADDRESS) & 0xFC));
+        stat = mem_read(STAT_ADDRESS);
+
+        lcd_on = false;
+    }
 }
-void ppu_on() {
-    // Increment LY trick
-    mem_write(LY_ADDRESS, 153);
-    increment_ly();
-    set_mode(2);
 
-    scanline_dot = 0;
-    win_y = 0;
+void ppu_write(uint16_t address, uint8_t value) {
+    if (address == LCDC_ADDRESS) {
+        if (!(value & 0x80) && get_lcd()) {
+            // Turn off LCD
+            set_lcd(false);
+        } else if (value & 0x80 && !get_lcd()) {
+            // Turn on LCD
+            set_lcd(true);
+        }
+        lcdc = value;
+    } else if (address == STAT_ADDRESS) {
+        value = (value & 0xF8) | (stat & 0x07);
+        stat = value;
+    } else if (address == SCY_ADDRESS) {
+        scy = value;
+    } else if (address == SCX_ADDRESS) {
+        scx = value;
+    } else if (address == LY_ADDRESS) {
+        ly = value;
+    } else if (address == LYC_ADDRESS) {
+        lyc = value;
+    } else if (address == BGP_ADDRESS) {
+        bgp = value;
+    } else if (address == OBP0_ADDRESS) {
+        obp0 = value;
+    } else if (address == OBP1_ADDRESS) {
+        obp1 = value;
+    } else if (address == WY_ADDRESS) {
+        wy = value;
+    } else if (address == WX_ADDRESS) {
+        wx = value;
+    }
 
-    oam_counter = 0;
-    oam_index = 0;
+    mem_write(address, value);
 }
 
 void ppu_init(uint8_t (*mem_read_fp)(uint16_t), void (*mem_write_fp)(uint16_t, uint8_t)) {
+    lcd_on = true;
+
     // Set read/write function pointers (direct access to VRAM)
     mem_read = mem_read_fp;
     mem_write = mem_write_fp;
+
+    lcdc = mem_read(LCDC_ADDRESS);
+    stat = mem_read(STAT_ADDRESS);
+    scy = mem_read(SCY_ADDRESS);
+    scx = mem_read(SCX_ADDRESS);
+    ly = mem_read(LY_ADDRESS);
+    lyc = mem_read(LYC_ADDRESS);
+    bgp = mem_read(BGP_ADDRESS);
+    obp0 = mem_read(OBP0_ADDRESS);
+    obp1 = mem_read(OBP1_ADDRESS);
+    wy = mem_read(WY_ADDRESS);
+    wx = mem_read(WX_ADDRESS);
 
     // Intialize window
     window_init();
