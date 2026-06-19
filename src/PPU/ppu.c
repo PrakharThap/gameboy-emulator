@@ -300,8 +300,7 @@ void ppu_tick(uint8_t dots) {
                     uint8_t priority = obj.attributes & 0x80;
                     uint8_t y_flip = obj.attributes & 0x40;
                     uint8_t x_flip = obj.attributes & 0x20;
-                    uint8_t palette =
-                        mem_read((obj.attributes & 0x10) ? OBP1_ADDRESS : OBP0_ADDRESS);
+                    uint8_t palette = (obj.attributes & 0x10) ? obp1 : obp0;
 
                     uint8_t row = y_flip ? 7 - obj.tile_row_offset : obj.tile_row_offset;
                     if (obj.tile_row_offset <= 7) {

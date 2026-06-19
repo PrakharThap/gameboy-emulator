@@ -43,6 +43,11 @@ uint8_t bus_read(uint16_t address) {
         return 0xFF;
     }
 
+    // Clock Reads
+    if (address == DIV_ADDRESS || address == TIMA_ADDRESS || address == TMA_ADDRESS ||
+        address == TAC_ADDRESS)
+        return clock_read(address);
+
     // Joypad Reads
     if (address == 0xFF00) {
         return joypad_read();
@@ -79,6 +84,18 @@ void bus_write(uint16_t address, uint8_t value) {
         return;
     }
 
+    // Reset DIV on write
+    if (address == 0xFF04) {
+        reset_div_counter();
+        return;
+    }
+    // Clock Writes
+    if (address == DIV_ADDRESS || address == TIMA_ADDRESS || address == TMA_ADDRESS ||
+        address == TAC_ADDRESS) {
+        clock_read(address);
+        return;
+    }
+
     // DMA Start
     if (address == 0xFF46) {
         enable_dma(value * 0x100);
@@ -89,12 +106,6 @@ void bus_write(uint16_t address, uint8_t value) {
     if (address == 0xFF00) {
         joypad_write(value);
         return;
-    }
-
-    // Reset DIV on write
-    if (address == 0xFF04) {
-        reset_div_counter();
-        value = 0x00;
     }
 
     // Serial Start
@@ -150,7 +161,9 @@ void gb_init(FILE *rom, FILE *save, FILE *load, FILE *debugDestination) {
 
     // Main Loop
 
-    double target_ms = 1000.0 / 59.7275;
+    const double FPS = 59.7275;
+    double target_ms = 1000.0 / FPS;
+
     bool running = true;
     while (running) {
         int cycles = 0;
@@ -201,12 +214,13 @@ void gb_init(FILE *rom, FILE *save, FILE *load, FILE *debugDestination) {
         present_frame();
 
         uint64_t frame_end = SDL_GetTicks64();
-
         double elapsed_ms = (frame_end - frame_start);
+
         if (elapsed_ms < target_ms) {
             SDL_Delay((uint32_t)(target_ms - elapsed_ms));
         }
     }
+
     if (save_ext_ram(save)) {
         printf("Game saved.\n");
         fclose(save);
