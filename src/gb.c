@@ -12,6 +12,7 @@
 #include "joypad.h"
 #include "memory.h"
 #include "serial.h"
+#include "dialogs.h"
 
 #include "regions.h"
 
@@ -277,41 +278,40 @@ int main(int argc, char *argv[]) {
         strcat(romPath, argv[argc - 1]);
         rom = fopen(romPath, "rb");
     } else {
-        char romName[80];
-        char saveName[80];
-        char loadName[80];
-
-        printf("Enter file name of desired ROM: ");
-        scanf("%s", romName);
-        strcat(romPath, romName);
-
-        printf("Enter file name of desired save file: ");
-        scanf("%s", saveName);
-        strcat(savePath, saveName);
-
-        printf("Enter file name of desired load file: ");
-        scanf("%s", loadName);
-        strcat(loadPath, loadName);
-
-        rom = fopen(romPath, "rb");
-        if (rom == NULL) {
-            perror("ERROR: Game ROM could not be opened.\n");
+        char *romPath = show_file_dialog("Select ROM", "ROMS/", ".gb");
+        if (!romPath) {
+            printf("No ROM selected.\n");
             return 1;
         }
 
-        save = fopen(savePath, "r+");
-        if (save == NULL) {
-            printf("ERROR: Save file could not be opened. New file will be created.\n");
-            save = fopen(savePath, "w");
-            if (save == NULL) {
-                perror("Save file could not be created at path.");
-            }
+        char *savePath = show_file_dialog("Select Save File (Cancel = skip)", "ROMS/Saves/", ".sav");
+        char *loadPath = show_file_dialog("Select Load File (Cancel = skip)", "ROMS/Saves/", ".sav");
+
+        rom = fopen(romPath, "rb");
+        if (!rom) {
+            perror("ERROR: ROM could not be opened");
+            free(romPath);
+            free(savePath);
+            free(loadPath);
+            return 1;
         }
 
-        load = fopen(loadPath, "rb");
-        if (load == NULL) {
-            perror("ERROR: Load file could not be opened. No RAM will be loaded.\n");
+        if (savePath) {
+            save = fopen(savePath, "r+");
+            if (!save) {
+                save = fopen(savePath, "w");
+                if (!save) perror("Save file could not be created");
+            }
+            free(savePath);
         }
+
+        if (loadPath) {
+            load = fopen(loadPath, "rb");
+            if (!load) perror("Load file could not be opened");
+            free(loadPath);
+        }
+
+        free(romPath);
     }
     gb_init(rom, save, load, debugDestination);
 

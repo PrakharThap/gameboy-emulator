@@ -1,0 +1,378 @@
+#include "dialogs.h"
+
+#include <SDL2/SDL.h>
+#include <stdbool.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <strings.h>
+
+#define WIN_W 560
+#define WIN_H 420
+#define FONT_W 8
+#define FONT_H 8
+#define MARGIN 10
+#define HEADER_H 30
+#define LIST_X 10
+#define LIST_Y (HEADER_H + 5)
+#define LIST_W (WIN_W - 20)
+#define LIST_H (WIN_H - LIST_Y - 60)
+#define ITEM_H 20
+#define BTN_W 80
+#define BTN_H 30
+#define BTN_Y (WIN_H - 50)
+
+static const uint8_t FONT_DATA[95][8] = {
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0x18, 0x3c, 0x3c, 0x18, 0x18, 0x00, 0x18, 0x00},
+    {0x66, 0x66, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0x6c, 0x6c, 0xfe, 0x6c, 0xfe, 0x6c, 0x6c, 0x00},
+    {0x18, 0x3e, 0x60, 0x3c, 0x06, 0x7c, 0x18, 0x00},
+    {0x00, 0xc6, 0xcc, 0x18, 0x30, 0x66, 0xc6, 0x00},
+    {0x38, 0x6c, 0x38, 0x76, 0xdc, 0xcc, 0x76, 0x00},
+    {0x18, 0x18, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0x0c, 0x18, 0x30, 0x30, 0x30, 0x18, 0x0c, 0x00},
+    {0x30, 0x18, 0x0c, 0x0c, 0x0c, 0x18, 0x30, 0x00},
+    {0x00, 0x66, 0x3c, 0xff, 0x3c, 0x66, 0x00, 0x00},
+    {0x00, 0x18, 0x18, 0x7e, 0x18, 0x18, 0x00, 0x00},
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x18, 0x30},
+    {0x00, 0x00, 0x00, 0x7e, 0x00, 0x00, 0x00, 0x00},
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x18, 0x00},
+    {0x06, 0x0c, 0x18, 0x30, 0x60, 0xc0, 0x80, 0x00},
+    {0x38, 0x6c, 0xc6, 0xd6, 0xc6, 0x6c, 0x38, 0x00},
+    {0x18, 0x38, 0x18, 0x18, 0x18, 0x18, 0x7e, 0x00},
+    {0x7c, 0xc6, 0x06, 0x1c, 0x30, 0x66, 0xfe, 0x00},
+    {0x7c, 0xc6, 0x06, 0x3c, 0x06, 0xc6, 0x7c, 0x00},
+    {0x1c, 0x3c, 0x6c, 0xcc, 0xfe, 0x0c, 0x1e, 0x00},
+    {0xfe, 0xc0, 0xc0, 0xfc, 0x06, 0xc6, 0x7c, 0x00},
+    {0x38, 0x60, 0xc0, 0xfc, 0xc6, 0xc6, 0x7c, 0x00},
+    {0xfe, 0xc6, 0x0c, 0x18, 0x30, 0x30, 0x30, 0x00},
+    {0x7c, 0xc6, 0xc6, 0x7c, 0xc6, 0xc6, 0x7c, 0x00},
+    {0x7c, 0xc6, 0xc6, 0x7e, 0x06, 0x0c, 0x78, 0x00},
+    {0x00, 0x18, 0x18, 0x00, 0x00, 0x18, 0x18, 0x00},
+    {0x00, 0x18, 0x18, 0x00, 0x00, 0x18, 0x18, 0x30},
+    {0x06, 0x0c, 0x18, 0x30, 0x18, 0x0c, 0x06, 0x00},
+    {0x00, 0x00, 0x7e, 0x00, 0x00, 0x7e, 0x00, 0x00},
+    {0x60, 0x30, 0x18, 0x0c, 0x18, 0x30, 0x60, 0x00},
+    {0x7c, 0xc6, 0x0c, 0x18, 0x18, 0x00, 0x18, 0x00},
+    {0x7c, 0xc6, 0xde, 0xde, 0xde, 0xc0, 0x78, 0x00},
+    {0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0xc6, 0x00},
+    {0xfc, 0x66, 0x66, 0x7c, 0x66, 0x66, 0xfc, 0x00},
+    {0x3c, 0x66, 0xc0, 0xc0, 0xc0, 0x66, 0x3c, 0x00},
+    {0xf8, 0x6c, 0x66, 0x66, 0x66, 0x6c, 0xf8, 0x00},
+    {0xfe, 0x62, 0x68, 0x78, 0x68, 0x62, 0xfe, 0x00},
+    {0xfe, 0x62, 0x68, 0x78, 0x68, 0x60, 0xf0, 0x00},
+    {0x3c, 0x66, 0xc0, 0xc0, 0xce, 0x66, 0x3a, 0x00},
+    {0xc6, 0xc6, 0xc6, 0xfe, 0xc6, 0xc6, 0xc6, 0x00},
+    {0x3c, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3c, 0x00},
+    {0x1e, 0x0c, 0x0c, 0x0c, 0xcc, 0xcc, 0x78, 0x00},
+    {0xe6, 0x66, 0x6c, 0x78, 0x6c, 0x66, 0xe6, 0x00},
+    {0xf0, 0x60, 0x60, 0x60, 0x62, 0x66, 0xfe, 0x00},
+    {0xc6, 0xee, 0xfe, 0xfe, 0xd6, 0xc6, 0xc6, 0x00},
+    {0xc6, 0xe6, 0xf6, 0xde, 0xce, 0xc6, 0xc6, 0x00},
+    {0x7c, 0xc6, 0xc6, 0xc6, 0xc6, 0xc6, 0x7c, 0x00},
+    {0xfc, 0x66, 0x66, 0x7c, 0x60, 0x60, 0xf0, 0x00},
+    {0x7c, 0xc6, 0xc6, 0xc6, 0xc6, 0xce, 0x7c, 0x0e},
+    {0xfc, 0x66, 0x66, 0x7c, 0x6c, 0x66, 0xe6, 0x00},
+    {0x3c, 0x66, 0x30, 0x18, 0x0c, 0x66, 0x3c, 0x00},
+    {0x7e, 0x7e, 0x5a, 0x18, 0x18, 0x18, 0x3c, 0x00},
+    {0xc6, 0xc6, 0xc6, 0xc6, 0xc6, 0xc6, 0x7c, 0x00},
+    {0xc6, 0xc6, 0xc6, 0xc6, 0xc6, 0x6c, 0x38, 0x00},
+    {0xc6, 0xc6, 0xc6, 0xd6, 0xd6, 0xfe, 0x6c, 0x00},
+    {0xc6, 0xc6, 0x6c, 0x38, 0x6c, 0xc6, 0xc6, 0x00},
+    {0x66, 0x66, 0x66, 0x3c, 0x18, 0x18, 0x3c, 0x00},
+    {0xfe, 0xc6, 0x8c, 0x18, 0x32, 0x66, 0xfe, 0x00},
+    {0x3c, 0x30, 0x30, 0x30, 0x30, 0x30, 0x3c, 0x00},
+    {0xc0, 0x60, 0x30, 0x18, 0x0c, 0x06, 0x02, 0x00},
+    {0x3c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x3c, 0x00},
+    {0x10, 0x38, 0x6c, 0xc6, 0x00, 0x00, 0x00, 0x00},
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+    {0x30, 0x18, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0x00, 0x00, 0x78, 0x0c, 0x7c, 0xcc, 0x76, 0x00},
+    {0xe0, 0x60, 0x7c, 0x66, 0x66, 0x66, 0xdc, 0x00},
+    {0x00, 0x00, 0x7c, 0xc6, 0xc0, 0xc6, 0x7c, 0x00},
+    {0x1c, 0x0c, 0x7c, 0xcc, 0xcc, 0xcc, 0x76, 0x00},
+    {0x00, 0x00, 0x7c, 0xc6, 0xfe, 0xc0, 0x7c, 0x00},
+    {0x3c, 0x66, 0x60, 0xf8, 0x60, 0x60, 0xf0, 0x00},
+    {0x00, 0x00, 0x76, 0xcc, 0xcc, 0x7c, 0x0c, 0xf8},
+    {0xe0, 0x60, 0x6c, 0x76, 0x66, 0x66, 0xe6, 0x00},
+    {0x18, 0x00, 0x38, 0x18, 0x18, 0x18, 0x3c, 0x00},
+    {0x06, 0x00, 0x06, 0x06, 0x06, 0x66, 0x66, 0x3c},
+    {0xe0, 0x60, 0x66, 0x6c, 0x78, 0x6c, 0xe6, 0x00},
+    {0x38, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3c, 0x00},
+    {0x00, 0x00, 0xec, 0xfe, 0xd6, 0xd6, 0xd6, 0x00},
+    {0x00, 0x00, 0xdc, 0x66, 0x66, 0x66, 0x66, 0x00},
+    {0x00, 0x00, 0x7c, 0xc6, 0xc6, 0xc6, 0x7c, 0x00},
+    {0x00, 0x00, 0xdc, 0x66, 0x66, 0x7c, 0x60, 0xf0},
+    {0x00, 0x00, 0x76, 0xcc, 0xcc, 0x7c, 0x0c, 0x1e},
+    {0x00, 0x00, 0xdc, 0x76, 0x60, 0x60, 0xf0, 0x00},
+    {0x00, 0x00, 0x7e, 0xc0, 0x7c, 0x06, 0xfc, 0x00},
+    {0x30, 0x30, 0xfc, 0x30, 0x30, 0x36, 0x1c, 0x00},
+    {0x00, 0x00, 0xcc, 0xcc, 0xcc, 0xcc, 0x76, 0x00},
+    {0x00, 0x00, 0xc6, 0xc6, 0xc6, 0x6c, 0x38, 0x00},
+    {0x00, 0x00, 0xc6, 0xd6, 0xd6, 0xfe, 0x6c, 0x00},
+    {0x00, 0x00, 0xc6, 0x6c, 0x38, 0x6c, 0xc6, 0x00},
+    {0x00, 0x00, 0xc6, 0xc6, 0xc6, 0x7e, 0x06, 0xfc},
+    {0x00, 0x00, 0x7e, 0x4c, 0x18, 0x32, 0x7e, 0x00},
+    {0x0e, 0x18, 0x18, 0x70, 0x18, 0x18, 0x0e, 0x00},
+    {0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x00},
+    {0x70, 0x18, 0x18, 0x0e, 0x18, 0x18, 0x70, 0x00},
+    {0x76, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
+static int string_compare(const void *a, const void *b) {
+    return strcmp(*(const char **)a, *(const char **)b);
+}
+
+static int has_extension(const char *name, const char *ext) {
+    if (!ext || !*ext) return 1;
+    const char *dot = strrchr(name, '.');
+    if (!dot) return 0;
+    return strcasecmp(dot, ext) == 0;
+}
+
+static void render_char(SDL_Renderer *renderer, int x, int y, unsigned char c,
+                        SDL_Color color) {
+    if (c < 32 || c > 126) c = 32;
+    int idx = c - 32;
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    for (int row = 0; row < 8; row++) {
+        uint8_t bits = FONT_DATA[idx][row];
+        for (int col = 0; col < 8; col++) {
+            if (bits & (0x80 >> col)) {
+                SDL_RenderDrawPoint(renderer, x + col, y + row);
+            }
+        }
+    }
+}
+
+static void render_text(SDL_Renderer *renderer, int x, int y, const char *text,
+                        SDL_Color color) {
+    while (*text) {
+        render_char(renderer, x, y, (unsigned char)*text, color);
+        x += FONT_W + 1;
+        text++;
+    }
+}
+
+static int text_width(const char *text) {
+    return strlen(text) * (FONT_W + 1);
+}
+
+char* show_file_dialog(const char *title, const char *directory, const char *extension) {
+    char **files = NULL;
+    int num_files = 0, capacity = 0;
+
+    DIR *dir = opendir(directory);
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_type != DT_REG && entry->d_type != DT_UNKNOWN)
+                continue;
+            if (!has_extension(entry->d_name, extension))
+                continue;
+            if (num_files >= capacity) {
+                capacity = capacity ? capacity * 2 : 16;
+                files = realloc(files, capacity * sizeof(char *));
+            }
+            files[num_files] = strdup(entry->d_name);
+            num_files++;
+        }
+        closedir(dir);
+
+        if (num_files > 0)
+            qsort(files, num_files, sizeof(char *), string_compare);
+    }
+
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        for (int i = 0; i < num_files; i++) free(files[i]);
+        free(files);
+        return NULL;
+    }
+
+    SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED, WIN_W, WIN_H, 0);
+    if (!window) {
+        SDL_Quit();
+        for (int i = 0; i < num_files; i++) free(files[i]);
+        free(files);
+        return NULL;
+    }
+
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        for (int i = 0; i < num_files; i++) free(files[i]);
+        free(files);
+        return NULL;
+    }
+
+    int selection = 0;
+    int scroll = 0;
+    int max_visible = LIST_H / ITEM_H;
+    char *result = NULL;
+    bool running = true;
+    bool confirmed = false;
+    bool dir_exists = (dir != NULL);
+
+    SDL_Color col_title  = {220, 220, 220, 255};
+    SDL_Color col_text   = {200, 200, 200, 255};
+    SDL_Color col_sel_bg = {50, 100, 200, 255};
+    SDL_Color col_sel_tx = {255, 255, 255, 255};
+    SDL_Color col_btn    = {80, 80, 80, 255};
+    SDL_Color col_btn_h  = {110, 110, 110, 255};
+    SDL_Color col_btn_tx = {220, 220, 220, 255};
+
+    while (running) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            } else if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                case SDLK_UP:
+                    if (num_files > 0 && selection > 0) selection--;
+                    if (selection < scroll) scroll = selection;
+                    break;
+                case SDLK_DOWN:
+                    if (num_files > 0 && selection < num_files - 1) selection++;
+                    if (selection >= scroll + max_visible)
+                        scroll = selection - max_visible + 1;
+                    break;
+                case SDLK_RETURN:
+                    if (num_files > 0) { confirmed = true; running = false; }
+                    break;
+                case SDLK_ESCAPE:
+                    running = false;
+                    break;
+                }
+            } else if (event.type == SDL_MOUSEBUTTONDOWN) {
+                int mx = event.button.x;
+                int my = event.button.y;
+
+                if (mx >= LIST_X && mx < LIST_X + LIST_W &&
+                    my >= LIST_Y && my < LIST_Y + LIST_H) {
+                    int idx = (my - LIST_Y) / ITEM_H + scroll;
+                    if (idx >= 0 && idx < num_files) {
+                        selection = idx;
+                        if (num_files > 0 && event.button.clicks >= 2) {
+                            confirmed = true;
+                            running = false;
+                        }
+                    }
+                }
+
+                if (my >= BTN_Y && my < BTN_Y + BTN_H) {
+                    if (mx >= WIN_W / 2 - BTN_W - 10 &&
+                        mx < WIN_W / 2 - 10 && num_files > 0) {
+                        confirmed = true;
+                        running = false;
+                    }
+                    if (mx >= WIN_W / 2 + 10 &&
+                        mx < WIN_W / 2 + 10 + BTN_W) {
+                        running = false;
+                    }
+                }
+            } else if (event.type == SDL_MOUSEWHEEL) {
+                if (num_files > 0 && event.wheel.y > 0 && scroll > 0)
+                    scroll--;
+                else if (num_files > 0 && event.wheel.y < 0 &&
+                    scroll < num_files - max_visible)
+                    scroll++;
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+        SDL_RenderClear(renderer);
+
+        render_text(renderer, MARGIN, 8, title, col_title);
+
+        SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
+        SDL_RenderDrawLine(renderer, 0, HEADER_H, WIN_W, HEADER_H);
+
+        SDL_Rect list_bg = {LIST_X, LIST_Y, LIST_W, LIST_H};
+        SDL_SetRenderDrawColor(renderer, 15, 15, 15, 255);
+        SDL_RenderFillRect(renderer, &list_bg);
+        SDL_SetRenderDrawColor(renderer, 70, 70, 70, 255);
+        SDL_RenderDrawRect(renderer, &list_bg);
+
+        if (num_files == 0) {
+            const char *msg = dir_exists
+                ? "No files found."
+                : "Directory not found.";
+            render_text(renderer, LIST_X + 6, LIST_Y + 10, msg, col_text);
+        } else {
+            for (int i = 0; i < max_visible && i + scroll < num_files; i++) {
+                int idx = i + scroll;
+                int y = LIST_Y + i * ITEM_H;
+
+                if (idx == selection) {
+                    SDL_Rect sel = {LIST_X + 1, y + 1, LIST_W - 2, ITEM_H - 2};
+                    SDL_SetRenderDrawColor(renderer, col_sel_bg.r,
+                        col_sel_bg.g, col_sel_bg.b, 255);
+                    SDL_RenderFillRect(renderer, &sel);
+                    render_text(renderer, LIST_X + 6,
+                        y + (ITEM_H - FONT_H) / 2, files[idx], col_sel_tx);
+                } else {
+                    render_text(renderer, LIST_X + 6,
+                        y + (ITEM_H - FONT_H) / 2, files[idx], col_text);
+                }
+            }
+        }
+
+        int mx, my;
+        SDL_GetMouseState(&mx, &my);
+
+        SDL_Rect open_btn = {WIN_W / 2 - BTN_W - 10, BTN_Y, BTN_W, BTN_H};
+        bool open_hover = mx >= open_btn.x && mx < open_btn.x + BTN_W &&
+                          my >= open_btn.y && my < open_btn.y + BTN_H;
+        SDL_SetRenderDrawColor(renderer, open_hover ? col_btn_h.r : col_btn.r,
+            open_hover ? col_btn_h.g : col_btn.g,
+            open_hover ? col_btn_h.b : col_btn.b, 255);
+        SDL_RenderFillRect(renderer, &open_btn);
+        SDL_SetRenderDrawColor(renderer, 120, 120, 120, 255);
+        SDL_RenderDrawRect(renderer, &open_btn);
+        render_text(renderer,
+            open_btn.x + (BTN_W - text_width("Open")) / 2,
+            open_btn.y + (BTN_H - FONT_H) / 2, "Open", col_btn_tx);
+
+        SDL_Rect cancel_btn = {WIN_W / 2 + 10, BTN_Y, BTN_W, BTN_H};
+        bool cancel_hover = mx >= cancel_btn.x &&
+            mx < cancel_btn.x + BTN_W &&
+            my >= cancel_btn.y && my < cancel_btn.y + BTN_H;
+        SDL_SetRenderDrawColor(renderer,
+            cancel_hover ? col_btn_h.r : col_btn.r,
+            cancel_hover ? col_btn_h.g : col_btn.g,
+            cancel_hover ? col_btn_h.b : col_btn.b, 255);
+        SDL_RenderFillRect(renderer, &cancel_btn);
+        SDL_SetRenderDrawColor(renderer, 120, 120, 120, 255);
+        SDL_RenderDrawRect(renderer, &cancel_btn);
+        render_text(renderer,
+            cancel_btn.x + (BTN_W - text_width("Cancel")) / 2,
+            cancel_btn.y + (BTN_H - FONT_H) / 2, "Cancel", col_btn_tx);
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
+    }
+
+    if (confirmed && selection >= 0 && selection < num_files) {
+        size_t dirlen = strlen(directory);
+        size_t namelen = strlen(files[selection]);
+        result = malloc(dirlen + namelen + 1);
+        if (result) {
+            memcpy(result, directory, dirlen);
+            memcpy(result + dirlen, files[selection], namelen + 1);
+        }
+    }
+
+    for (int i = 0; i < num_files; i++) free(files[i]);
+    free(files);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
+    return result;
+}

@@ -55,7 +55,7 @@ void window_init() {
     }
 
     // Create window
-    window = SDL_CreateWindow("SDL2 Pixel Example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    window = SDL_CreateWindow("Game Boy Emulator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               SCREEN_WIDTH, SCREEN_HEIGHT, 0);
     if (!window) {
         printf("Window Error: %s\n", SDL_GetError());

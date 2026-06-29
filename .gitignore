@@ -56,3 +56,6 @@ dkms.conf
 
 # Test ROMS 
 *.gb
+
+# CMake build directory
+build/
